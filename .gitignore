@@ -1,0 +1,53 @@
+# =====================
+# Python
+# =====================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# =====================
+# Flask
+# =====================
+instance/
+.webassets-cache
+
+# =====================
+# Jupyter Notebook
+# =====================
+.ipynb_checkpoints/
+
+# =====================
+# Machine Learning / Model
+# =====================
+*.pkl
+*.joblib
+models/
+checkpoints/
+
+# =====================
+# Environment Variables
+# =====================
+.env
+.env.*
+
+# =====================
+# VS Code
+# =====================
+.vscode/
+
+# =====================
+# OS files
+# =====================
+.DS_Store
+Thumbs.db
+
+# =====================
+# Logs
+# =====================
+*.log
