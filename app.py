@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from routes.train import train_bp
 from routes.predict import predict_bp
+from routes.predict_routes import classify_bp
 from routes.reconcile import reconcile_bp
 from routes.config import config_bp
 from routes.archive import archive_bp
@@ -26,6 +27,7 @@ def create_app():
     # Register Blueprints
     app.register_blueprint(train_bp)
     app.register_blueprint(predict_bp)
+    app.register_blueprint(classify_bp)
     app.register_blueprint(reconcile_bp)
     app.register_blueprint(config_bp)
     app.register_blueprint(archive_bp)

@@ -11,7 +11,7 @@ def reconcile_route():
     """
     Endpoint untuk rekonsiliasi data RDKK vs SIVERVAL.
     Hanya memproses dan mengembalikan hasil.
-    Penyimpanan ke database dilakukan terpisah via /api/archive/save.
+    Penyimpanan ke database dilakukan via /api/archive/save.
     """
     try:
         if 'rdkk' not in request.files:

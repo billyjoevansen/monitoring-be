@@ -56,16 +56,16 @@ def reconcile(df: pd.DataFrame) -> dict:
             if diajukan == 0 and ditebus == 0:
                 status_pupuk = 'TIDAK DIAJUKAN'
             elif diajukan == 0 and ditebus > 0:
-                status_pupuk = 'TEBUS TANPA PENGAJUAN'
+                status_pupuk = 'TANPA PENGAJUAN'
                 catatan.append(f'{pupuk.upper()}: Menebus {ditebus:.0f} kg tanpa pengajuan')
             elif ditebus == 0:
                 status_pupuk = 'BELUM DITEBUS'
                 catatan.append(f'{pupuk.upper()}: Belum ditebus ({diajukan:.0f} kg)')
             elif selisih > 0:
-                status_pupuk = 'KURANG TEBUS'
+                status_pupuk = 'KURANG'
                 catatan.append(f'{pupuk.upper()}: Kurang {selisih:.0f} kg')
             elif selisih < 0:
-                status_pupuk = 'LEBIH TEBUS'
+                status_pupuk = 'LEBIH'
                 catatan.append(f'{pupuk.upper()}: Lebih {abs(selisih):.0f} kg')
 
             pupuk_detail[pupuk] = {

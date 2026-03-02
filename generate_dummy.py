@@ -9,7 +9,7 @@ import os
 import glob
 
 # Jumlah petani dummy
-N_PETANI = 500
+N_PETANI = 100
 
 
 def get_next_file_number(folder: str) -> str:
@@ -123,7 +123,7 @@ def generate_dummy():
         'Kode Desa': [f'D{np.random.randint(100, 999)}' for _ in range(N_PETANI)],
         'Kode Kios Pengecer': [np.random.choice(kode_kios_list) for _ in range(N_PETANI)],
         'Nama Kios Pengecer': [],
-        'Gapoktan': [np.random.choice(gapoktan_list) for _ in range(N_PETANI)],
+        'Gapoktan': [None] * N_PETANI,#[np.random.choice(gapoktan_list) for _ in range(N_PETANI)],
         'Nama Poktan': [np.random.choice(poktan_list) for _ in range(N_PETANI)],
         'Nama Petani': nama_petani,
         'KTP': niks,

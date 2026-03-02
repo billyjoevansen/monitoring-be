@@ -10,6 +10,7 @@ env/
 venv/
 ENV/
 .venv/
+dummy_data/
 
 # =====================
 # Flask
