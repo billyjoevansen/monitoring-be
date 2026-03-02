@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from werkzeug.datastructures import FileStorage
 
@@ -6,6 +7,8 @@ from werkzeug.datastructures import FileStorage
 # KONFIGURASI NAMA KOLOM
 # Mapping nama kolom dari Excel ke nama standar internal
 # =====================================================
+
+ALLOWED_EXTENSIONS = {'.xlsx', '.xls'}
 
 # Kolom RDKK
 RDKK_COLUMNS = {
@@ -67,24 +70,30 @@ SIVERVAL_COLUMNS = {
     'kecamatan': 'kecamatan',
 }
 
+def validate_file_type(file: FileStorage) -> None:
+    """Validate that the uploaded file is an Excel file."""
+    if not file.filename:
+        raise ValueError("Nama file tidak boleh kosong.")
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise ValueError(
+            f'Format file tidak didukung: "{ext}". '
+            f'Gunakan file Excel (.xlsx atau .xls).'
+        )
+
+
 def parse_excel(file: FileStorage, header_row: int = 0) -> pd.DataFrame:
     """
-    Membaca file Excel/CSV yang diupload dan mengembalikan DataFrame.
+    Membaca file Excel yang diupload dan mengembalikan DataFrame.
 
     Args:
         file: File yang diupload
         header_row: Baris ke-berapa yang jadi header (0-indexed).
                     Default 0 (baris pertama).
     """
-    filename = file.filename.lower()
-
-    if filename.endswith('.csv'):
-        df = pd.read_csv(file, header=header_row)
-    elif filename.endswith(('.xls', '.xlsx')):
-        df = pd.read_excel(file, engine='openpyxl', header=header_row)
-    else:
-        raise ValueError(f"Format file tidak didukung: {filename}. Gunakan .csv, .xls, atau .xlsx")
-
+    validate_file_type(file)
+    df = pd.read_excel(file, engine='openpyxl', header=header_row)
     return df
 
 def standardize_rdkk(df: pd.DataFrame) -> pd.DataFrame:

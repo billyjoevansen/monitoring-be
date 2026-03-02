@@ -52,7 +52,7 @@ def update_config():
     }
     """
     try:
-        new_config = request.get_json()
+        new_config = request.get_json(silent=True)
 
         if not new_config:
             return jsonify({'error': 'Body JSON tidak boleh kosong.'}), 400
