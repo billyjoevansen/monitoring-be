@@ -95,7 +95,7 @@ def reconcile(df: pd.DataFrame) -> dict:
             'nama_petani': str(row.get('nama_petani', '')),
             'nik': str(row.get('nik', '')),
             'poktan': str(row.get('poktan', '')),
-            'gapoktan': str(row.get('gapoktan', '')),
+            'gapoktan': str(row.get('gapoktan', '')) if pd.notna(row.get('gapoktan')) else '',
             'alamat': str(row.get('alamat', '')),
             'penyuluh': str(row.get('penyuluh', '')),
             'kios_rdkk': str(row.get('nama_kios_rdkk', '')),

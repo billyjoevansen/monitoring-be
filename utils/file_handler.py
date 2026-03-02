@@ -106,6 +106,12 @@ def standardize_rdkk(df: pd.DataFrame) -> pd.DataFrame:
     if 'nik' in df.columns:
         df['nik'] = df['nik'].astype(str).str.strip()
 
+    # Nilai Record 'Gapoktan' bisa kosong
+    if 'gapoktan' not in df.columns:
+        df['gapoktan'] = ''
+    else:
+        df['gapoktan'] = df['gapoktan'].fillna('').astype(str).str.strip()
+
     return df
 
 

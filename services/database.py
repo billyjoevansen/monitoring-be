@@ -40,7 +40,7 @@ def save_reconciliation(summary: dict, detail: list, filename_rdkk: str, filenam
             'nama_petani': petani['nama_petani'],
             'nik': petani['nik'],
             'poktan': petani['poktan'],
-            'gapoktan': petani['gapoktan'],
+            'gapoktan': petani.get('gapoktan', ''),
             'kios_rdkk': petani['kios_rdkk'],
             'kios_penebusan': petani['kios_penebusan'],
             'kios_sesuai': petani['kios_sesuai'],
