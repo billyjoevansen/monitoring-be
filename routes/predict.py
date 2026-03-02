@@ -1,7 +1,9 @@
+import os
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from utils.file_handler import parse_excel, standardize_rdkk, standardize_siverval
 from services.preprocessing import merge_data, engineer_features
-from services.prediction import predict, load_model
+from services.prediction import predict, load_model, MODEL_PATH
 
 predict_bp = Blueprint('predict', __name__)
 
@@ -183,26 +185,15 @@ def classify_route():
 def model_info():
     """Cek info model yang sudah dilatih."""
     try:
-        import os
-
-        MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
-        MODEL_PATH = os.path.join(MODEL_DIR, 'random_forest.pkl')
-
         if not os.path.exists(MODEL_PATH):
             return jsonify({'error': 'Model belum dilatih.', 'trained': False}), 404
 
-        model_data = load_model()
-        model = model_data['model']
-        features = model_data['features']
-        model_size = os.path.getsize(MODEL_PATH) / 1024
-
+        stat = os.stat(MODEL_PATH)
         return jsonify({
             'trained': True,
-            'n_estimators': model.n_estimators,
-            'n_features': model.n_features_in_,
-            'features': features,
-            'classes': model.classes_.tolist(),
-            'size_kb': round(model_size, 1),
+            'model_path': MODEL_PATH,
+            'size_kb': round(stat.st_size / 1024, 2),
+            'last_modified': datetime.fromtimestamp(stat.st_mtime).isoformat(),
         }), 200
 
     except Exception as e:

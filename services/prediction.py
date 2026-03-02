@@ -1,4 +1,5 @@
 import os
+import logging
 import joblib
 import pandas as pd
 import numpy as np
@@ -13,6 +14,8 @@ from sklearn.metrics import (
 )
 from services.preprocessing import FEATURE_COLUMNS
 from config.model_config import get_random_forest_params, get_training_config
+
+logger = logging.getLogger(__name__)
 
 
 MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
@@ -58,7 +61,7 @@ def train_model(df: pd.DataFrame) -> dict:
 
     use_stratify = TRAIN_CONFIG['stratify'] and min_class_count >= 2
     if not use_stratify and TRAIN_CONFIG['stratify']:
-        print(f"⚠️ Stratify dinonaktifkan karena kelas minoritas hanya {min_class_count} sampel.")
+        logger.warning(f"⚠️ Stratify dinonaktifkan karena kelas minoritas hanya {min_class_count} sampel.")
 
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
