@@ -163,3 +163,70 @@ def get_archive_detail(session_id):
 
     except Exception as e:
         return jsonify({'error': f'Gagal mengambil detail arsip: {str(e)}'}), 500
+
+
+@archive_bp.route('/api/archive/bulk-delete', methods=['DELETE'])
+def bulk_delete_archive():
+    """
+    Endpoint untuk menghapus beberapa arsip sekaligus.
+
+    Body JSON:
+    {
+        "type": "reconcile" | "predict",
+        "session_ids": [1, 2, 3]
+    }
+    """
+    try:
+        from config.supabase_client import get_supabase
+
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'Body JSON tidak boleh kosong.'}), 400
+
+        archive_type = data.get('type')
+        session_ids = data.get('session_ids')
+
+        if not archive_type:
+            return jsonify({'error': 'Field "type" wajib diisi.'}), 400
+
+        if session_ids is None:
+            return jsonify({'error': 'Field "session_ids" wajib diisi.'}), 400
+
+        if not isinstance(session_ids, list) or len(session_ids) == 0:
+            return jsonify({'error': 'Field "session_ids" harus berupa list yang tidak kosong.'}), 400
+
+        supabase = get_supabase()
+
+        if archive_type == 'reconcile':
+            supabase.table('rekonsiliasi_detail') \
+                .delete() \
+                .in_('session_id', session_ids) \
+                .execute()
+            result = supabase.table('rekonsiliasi_sessions') \
+                .delete() \
+                .in_('id', session_ids) \
+                .execute()
+        elif archive_type == 'predict':
+            supabase.table('prediksi_detail') \
+                .delete() \
+                .in_('session_id', session_ids) \
+                .execute()
+            result = supabase.table('prediksi_sessions') \
+                .delete() \
+                .in_('id', session_ids) \
+                .execute()
+        else:
+            return jsonify({
+                'error': f'Tipe arsip tidak valid: "{archive_type}". Gunakan "reconcile" atau "predict".'
+            }), 400
+
+        deleted_count = len(result.data) if result.data else 0
+
+        return jsonify({
+            'message': f'Berhasil menghapus {deleted_count} sesi arsip.',
+            'deleted_count': deleted_count,
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Gagal menghapus arsip: {str(e)}'}), 500
