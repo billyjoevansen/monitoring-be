@@ -8,6 +8,8 @@ from routes.reconcile import reconcile_bp
 from routes.config import config_bp
 from routes.archive import archive_bp
 from routes.visualize import visualize_bp
+from routes.users import users_bp
+from routes.logs import logs_bp
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,6 +44,8 @@ def create_app():
     app.register_blueprint(config_bp)
     app.register_blueprint(archive_bp)
     app.register_blueprint(visualize_bp)
+    app.register_blueprint(users_bp)
+    app.register_blueprint(logs_bp)
 
     # Health check
     @app.route('/api/health', methods=['GET'])
