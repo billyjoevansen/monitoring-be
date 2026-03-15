@@ -16,6 +16,7 @@ venv/
 ENV/
 .venv/
 dummy_data/
+text_api.py
 
 # =====================
 # Flask

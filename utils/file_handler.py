@@ -91,9 +91,24 @@ def parse_excel(file: FileStorage, header_row: int = 0) -> pd.DataFrame:
         file: File yang diupload
         header_row: Baris ke-berapa yang jadi header (0-indexed).
                     Default 0 (baris pertama).
+
+    Raises:
+        ValueError: Jika file bukan Excel, kosong, corrupt, atau tidak ada data.
     """
     validate_file_type(file)
-    df = pd.read_excel(file, engine='openpyxl', header=header_row)
+
+    try:
+        df = pd.read_excel(file, engine='openpyxl', header=header_row)
+    except Exception as e:
+        raise ValueError(
+            f'Gagal membaca file Excel "{file.filename}". '
+            f'Pastikan file tidak corrupt dan formatnya benar. '
+            f'Detail: {e}'
+        )
+
+    if df.empty:
+        raise ValueError(f'File "{file.filename}" tidak memiliki data.')
+
     return df
 
 def standardize_rdkk(df: pd.DataFrame) -> pd.DataFrame:
@@ -121,6 +136,13 @@ def standardize_rdkk(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df['gapoktan'] = df['gapoktan'].fillna('').astype(str).str.strip()
 
+    # Fill NaN pada kolom pupuk dan luas lahan dengan 0
+    # (petani yang tidak ikut MT2/MT3 akan punya nilai kosong di Excel)
+    numeric_prefixes = ('urea_', 'npk_', 'npk_formula_', 'organik_', 'za_', 'luas_lahan_')
+    for col in df.columns:
+        if any(col.startswith(p) for p in numeric_prefixes):
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
     return df
 
 
@@ -140,6 +162,8 @@ def standardize_siverval(df: pd.DataFrame) -> pd.DataFrame:
     # Pastikan kolom NIK berupa string
     if 'nik' in df.columns:
         df['nik'] = df['nik'].astype(str).str.strip()
+        # Buang baris kosong di akhir file Excel (NIK kosong atau 'nan')
+        df = df[df['nik'].notna() & (df['nik'] != '') & (df['nik'] != 'nan')]
 
     # Konversi kolom numerik pupuk
     pupuk_cols = [

@@ -9,7 +9,7 @@ import os
 import glob
 
 # Jumlah petani dummy
-N_PETANI = 100
+N_PETANI = 500
 
 
 def get_next_file_number(folder: str) -> str:
@@ -60,14 +60,17 @@ def generate_dummy():
 
     # Nama-nama dummy
     nama_depan = [
-        'Budi', 'Siti', 'Ahmad', 'Dewi', 'Agus', 'Sri', 'Hadi', 'Rina',
-        'Joko', 'Ani', 'Wahyu', 'Lestari', 'Bambang', 'Nurma', 'Eko',
-        'Yanti', 'Dani', 'Wati', 'Rudi', 'Mega',
+        'Budi', 'Siti', 'Ahmad', 'Dewi', 'Agus', 'Sri', 'Hadi', 'Rina', 'Joko', 'Ani', 'Wahyu', 'Lestari', 'Bambang', 'Nurma', 'Eko','Yanti', 'Dani', 'Wati', 'Rudi', 'Mega','Andi', 'Asep', 'Cecep', 'Dedi', 'Eneng', 'Fajar', 'Gita', 'Hendra','Indra', 'Iwan', 'Kartika', 'Mulyadi', 'Nana', 'Oki', 'Putri','Rahmat', 'Soleh', 'Taufik', 'Ujang', 'Yanto', 'Zaki', 'Fitria', 'Rizky', 'Dewantara', 'Sari', 'Wibowo', 'Yusuf', 'Zainal', 'Fadli', 'Guntur', 'Halim', 'Irfan', 'Jumadi', 'Kusnadi', 'Lukman', 'Mardiana',
+        'Slamet', 'Yuli', 'Edi', 'Nina', 'Reno', 'Sari', 'Dewi', 'Hendra', 'Lina',
     ]
     nama_belakang = [
         'Santoso', 'Wijaya', 'Hartono', 'Susanto', 'Rahayu', 'Pratama',
         'Saputra', 'Handayani', 'Kusuma', 'Hidayat', 'Lestari', 'Cahyono',
         'Setiawan', 'Purnama', 'Nugroho', 'Wulandari', 'Suryadi', 'Utami',
+        'Mulyana', 'Sudarsono', 'Gunawan', 'Suhendar', 'Heryanto', 'Fauzi',
+        'Ardiansyah', 'Siregar', 'Laksana', 'Kurniawan', 'Basri', 'Mahendra',
+        'Hafiz', 'Budiman', 'Subagyo', 'Pangestu', 'Sanjaya', 'Permana',
+        'Yuliana', 'Zulkarnaen', 'Fitria', 'Rizky', 'Dewantara', 'Sari', 'Wibowo', 'Yusuf', 'Zainal', 'Fadli', 'Guntur', 'Halim', 'Irfan', 'Jumadi', 'Kusnadi', 'Lukman', 'Mardiana',
     ]
     nama_petani = [
         f'{np.random.choice(nama_depan)} {np.random.choice(nama_belakang)}'
@@ -86,8 +89,12 @@ def generate_dummy():
 
     # Poktan dan Gapoktan (daerah Serang/Banten)
     poktan_list = [
-        'Sri Rejeki', 'Tani Mulyo', 'Karya Tani', 'Maju Jaya', 'Sawit Berkah',
-        'Harapan Baru', 'Mekar Sari', 'Subur Makmur', 'Etanol Nikmat', 'Berkah Tani',
+    'Sri Rejeki', 'Tani Mulyo', 'Karya Tani', 'Maju Jaya', 'Sawit Berkah',
+    'Harapan Baru', 'Mekar Sari', 'Subur Makmur', 'Berkah Tani',
+    'Sinar Jaya', 'Menteng Jaya', 'Sinar Melati', 'Mina Mukti', 'Sumber Jaya',
+    'Pandan Wangi', 'Setia Kawan', 'Taruna Mekar', 'Bina Tani', 'Tani Rahayu',
+    'Sida Mukti', 'Maju Bersama', 'Tani Mandiri', 'Hurip', 'Mutiara Tani',
+    'Cipta Karya', 'Tunas Harapan', 'Sari Bumi', 'Agro Lestari', 'Tani Sejahtera'
     ]
     gapoktan_list = [
         'Gapoktan Walantaka', 'Gapoktan Curug', 'Gapoktan Cipocok Jaya',
@@ -96,8 +103,13 @@ def generate_dummy():
 
     # Daerah (Serang & Banten)
     tempat_lahir_list = [
-        'Rangkas Bitung', 'Merak', 'Serang', 'Pandeglang',
-        'Puloampel', 'Bekasi', 'Tangerang', 'Lampung',
+    'Rangkas Bitung', 'Merak', 'Serang', 'Pandeglang',
+    'Puloampel', 'Bekasi', 'Tangerang', 'Lampung',
+    'Jakarta', 'Bandung', 'Bogor', 'Cilegon', 'Sukabumi', 
+    'Semarang', 'Yogyakarta', 'Surakarta', 'Surabaya', 'Malang',
+    'Medan', 'Palembang', 'Padang', 'Pekanbaru', 'Banjarmasin', 
+    'Pontianak', 'Balikpapan', 'Makassar', 'Manado', 'Denpasar', 
+    'Mataram', 'Kupang', 'Ambon', 'Jayapura'
     ]
     desa_list = [
         'Mancak', 'Karangsari', 'Banjarsari', 'Sidodadi', 'Cikeusal',

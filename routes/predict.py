@@ -75,6 +75,10 @@ def predict_route():
 def classify_route():
     """
     Klasifikasi data dari arsip rekonsiliasi (1 input JSON).
+
+    Menerima output dari /api/reconcile (field 'detail') dan
+    merekonstruksi semua fitur model dari data pupuk per jenis
+    yang sudah tersedia di struktur rekonsiliasi.
     """
     try:
         import pandas as pd
@@ -90,85 +94,117 @@ def classify_route():
         if not detail or len(detail) == 0:
             return jsonify({'error': 'Data detail kosong.'}), 400
 
-        # Load model (dict berisi 'model' dan 'features')
         model_data = load_model()
-        model = model_data['model']
+        model    = model_data['model']
         features = model_data['features']
 
-        df = pd.DataFrame(detail)
+        # =====================================================
+        # REKONSTRUKSI FITUR DARI DETAIL REKONSILIASI
+        # Struktur tiap petani di detail:
+        #   total_pupuk_diajukan_kg, total_pupuk_ditebus_kg,
+        #   total_luas_lahan_ha,
+        #   pupuk: { urea: {diajukan_kg, ditebus_kg}, npk: ..., dst }
+        # =====================================================
+        rows = []
+        for petani in detail:
+            pupuk  = petani.get('pupuk', {})
+            total_diajukan = float(petani.get('total_pupuk_diajukan_kg', 0))
+            total_ditebus  = float(petani.get('total_pupuk_ditebus_kg', 0))
+            luas_lahan     = float(petani.get('total_luas_lahan_ha', 0))
 
-        # Mapping kolom arsip → feature columns
-        col_mapping = {
-            'total_pupuk_diajukan_kg': ['total_pupuk_diajukan_kg', 'total_pupuk_diajukan'],
-            'total_pupuk_ditebus_kg': ['total_pupuk_ditebus_kg', 'total_pupuk_ditebus'],
-            'selisih_total_kg': ['selisih_total_kg', 'selisih_total'],
-        }
+            # Pupuk per jenis
+            urea_aj  = float(pupuk.get('urea',        {}).get('diajukan_kg', 0))
+            npk_aj   = float(pupuk.get('npk',         {}).get('diajukan_kg', 0))
+            za_aj    = float(pupuk.get('za',           {}).get('diajukan_kg', 0))
+            npkf_aj  = float(pupuk.get('npk_formula', {}).get('diajukan_kg', 0))
+            org_aj   = float(pupuk.get('organik',     {}).get('diajukan_kg', 0))
 
-        for target, sources in col_mapping.items():
-            if target not in df.columns:
-                for src in sources:
-                    if src in df.columns:
-                        df[target] = df[src]
-                        break
-                else:
-                    df[target] = 0
+            urea_tb  = float(pupuk.get('urea',        {}).get('ditebus_kg', 0))
+            npk_tb   = float(pupuk.get('npk',         {}).get('ditebus_kg', 0))
+            za_tb    = float(pupuk.get('za',           {}).get('ditebus_kg', 0))
+            npkf_tb  = float(pupuk.get('npk_formula', {}).get('ditebus_kg', 0))
+            org_tb   = float(pupuk.get('organik',     {}).get('ditebus_kg', 0))
 
-        # Numerik
-        numeric_cols = ['total_pupuk_diajukan_kg', 'total_pupuk_ditebus_kg', 'selisih_total_kg']
-        for col in numeric_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            # Proporsi pengajuan terhadap total diajukan
+            proporsi_urea    = urea_aj  / total_diajukan if total_diajukan > 0 else 0
+            proporsi_npk     = npk_aj   / total_diajukan if total_diajukan > 0 else 0
+            proporsi_za      = za_aj    / total_diajukan if total_diajukan > 0 else 0
+            proporsi_npkf    = npkf_aj  / total_diajukan if total_diajukan > 0 else 0
+            proporsi_organik = org_aj   / total_diajukan if total_diajukan > 0 else 0
 
-        # kios_sesuai → numerik
-        if 'kios_sesuai' in df.columns:
-            df['kios_sesuai_num'] = df['kios_sesuai'].apply(
-                lambda x: 1 if x in [True, 'true', 'True', 'Ya', 'ya', 1, '1'] else 0
-            )
-        else:
-            df['kios_sesuai_num'] = 0
+            # Proporsi penebusan terhadap total ditebus
+            prop_tb_urea  = urea_tb  / total_ditebus if total_ditebus > 0 else 0
+            prop_tb_npk   = npk_tb   / total_ditebus if total_ditebus > 0 else 0
+            prop_tb_za    = za_tb    / total_ditebus if total_ditebus > 0 else 0
+            prop_tb_npkf  = npkf_tb  / total_ditebus if total_ditebus > 0 else 0
+            prop_tb_org   = org_tb   / total_ditebus if total_ditebus > 0 else 0
 
-        # Rename untuk matching feature columns
-        if 'kios_sesuai' in features and 'kios_sesuai_num' in df.columns:
-            df['kios_sesuai'] = df['kios_sesuai_num']
+            # Intensitas per hektar
+            urea_per_ha = urea_aj / luas_lahan if luas_lahan > 0 else 0
 
-        # Pastikan semua feature ada
+            rows.append({
+                'total_pupuk_diajukan':        total_diajukan,
+                'total_pupuk_ditebus':         total_ditebus,
+                'urea_per_ha':                 urea_per_ha,
+                'proporsi_urea':               proporsi_urea,
+                'proporsi_npk':                proporsi_npk,
+                'proporsi_za':                 proporsi_za,
+                'proporsi_npk_formula':        proporsi_npkf,
+                'proporsi_organik':            proporsi_organik,
+                'proporsi_tebus_urea':         prop_tb_urea,
+                'proporsi_tebus_npk':          prop_tb_npk,
+                'proporsi_tebus_za':           prop_tb_za,
+                'proporsi_tebus_npk_formula':  prop_tb_npkf,
+                'proporsi_tebus_organik':      prop_tb_org,
+                # Fitur tambahan (disertakan agar aman jika model diretrain)
+                'total_luas_lahan':            luas_lahan,
+                'jumlah_mt_aktif':             int(petani.get('jumlah_mt_aktif', 0)),
+                'kios_sesuai': 1 if petani.get('kios_sesuai') in [True, 'true', 'True', 1, '1'] else 0,
+                'ada_penebusan':               1 if total_ditebus > 0 else 0,
+                'selisih_jenis_pupuk':         0,
+                'jenis_pupuk_diajukan':        sum(1 for v in [urea_aj,npk_aj,za_aj,npkf_aj,org_aj] if v > 0),
+                'jenis_pupuk_ditebus':         sum(1 for v in [urea_tb,npk_tb,za_tb,npkf_tb,org_tb] if v > 0),
+            })
+
+        df = pd.DataFrame(rows)
+
+        # Pastikan semua feature ada (fallback 0 jika model diretrain dengan fitur baru)
         for col in features:
             if col not in df.columns:
                 df[col] = 0
 
         X = df[features].fillna(0)
 
-        predictions = model.predict(X)
+        predictions   = model.predict(X)
         probabilities = model.predict_proba(X)
-        confidence = np.max(probabilities, axis=1)
+        confidence    = np.max(probabilities, axis=1)
 
-        # Build result
         result_detail = []
         for i in range(len(df)):
             original = detail[i] if i < len(detail) else {}
             result_detail.append({
-                'nama_petani': str(original.get('nama_petani', '')),
-                'nik': str(original.get('nik', '')),
-                'poktan': str(original.get('poktan', '')),
-                'kios_sesuai': original.get('kios_sesuai', False),
-                'total_pupuk_diajukan_kg': float(df.iloc[i].get('total_pupuk_diajukan_kg', 0)),
-                'total_pupuk_ditebus_kg': float(df.iloc[i].get('total_pupuk_ditebus_kg', 0)),
-                'selisih_total_kg': float(df.iloc[i].get('selisih_total_kg', 0)),
-                'status': 'NORMAL' if predictions[i] == 0 else 'TIDAK NORMAL',
-                'confidence': round(float(confidence[i]), 4),
+                'nama_petani':            str(original.get('nama_petani', '')),
+                'nik':                    str(original.get('nik', '')),
+                'poktan':                 str(original.get('poktan', '')),
+                'kios_sesuai':            original.get('kios_sesuai', False),
+                'total_pupuk_diajukan_kg': float(df.iloc[i]['total_pupuk_diajukan']),
+                'total_pupuk_ditebus_kg':  float(df.iloc[i]['total_pupuk_ditebus']),
+                'selisih_total_kg':        float(original.get('selisih_total_kg', 0)),
+                'status':                 'NORMAL' if predictions[i] == 0 else 'TIDAK NORMAL',
+                'confidence':             round(float(confidence[i]), 4),
             })
 
-        normal_count = int((predictions == 0).sum())
+        normal_count      = int((predictions == 0).sum())
         tidak_normal_count = int((predictions == 1).sum())
-        total = len(predictions)
+        total             = len(predictions)
 
         return jsonify({
             'summary': {
-                'total_petani': total,
-                'normal': normal_count,
-                'tidak_normal': tidak_normal_count,
-                'persentase_normal': round(normal_count / total * 100, 2) if total > 0 else 0,
-                'persentase_tidak_normal': round(tidak_normal_count / total * 100, 2) if total > 0 else 0,
+                'total_petani':              total,
+                'normal':                    normal_count,
+                'tidak_normal':              tidak_normal_count,
+                'persentase_normal':         round(normal_count / total * 100, 2) if total > 0 else 0,
+                'persentase_tidak_normal':   round(tidak_normal_count / total * 100, 2) if total > 0 else 0,
             },
             'detail': result_detail,
         }), 200

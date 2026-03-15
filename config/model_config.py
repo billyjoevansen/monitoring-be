@@ -6,20 +6,23 @@ Jika file JSON tidak ada, gunakan default.
 """
 import os
 import json
+import logging
 
+logger = logging.getLogger(__name__)
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'model_config.json')
 
 # Default config (fallback jika JSON tidak ada)
+# FIX 2: Diselaraskan dengan model_config.json (gini, balanced_subsample, 400 estimator)
 DEFAULT_CONFIG = {
     'hyperparameters': {
-        'n_estimators': 200,
-        'criterion': 'entropy',
-        'max_depth': 10,
+        'n_estimators': 400,
+        'criterion': 'gini',
+        'max_depth': 15,
         'max_features': 'sqrt',
         'min_samples_split': 10,
         'min_samples_leaf': 5,
-        'class_weight': 'balanced',
+        'class_weight': 'balanced_subsample',
         'bootstrap': True,
         'oob_score': True,
         'random_state': 42,
@@ -32,28 +35,38 @@ DEFAULT_CONFIG = {
     }
 }
 
-# Validasi: nilai yang diperbolehkan untuk setiap parameter
+# FIX 3: choices_str diganti choices agar benar-benar divalidasi
+# Tambahkan 'balanced_subsample' karena itu yang dipakai di JSON
 PARAM_RULES = {
-    'n_estimators': {'type': int, 'min': 10, 'max': 1000},
-    'criterion': {'type': str, 'choices': ['gini', 'entropy']},
-    'max_depth': {'type': (int, type(None)), 'min': 1, 'max': 100},
-    'max_features': {'type': (str, float, type(None)), 'choices_str': ['sqrt', 'log2']},
-    'min_samples_split': {'type': int, 'min': 2, 'max': 50},
-    'min_samples_leaf': {'type': int, 'min': 1, 'max': 50},
-    'class_weight': {'type': (str, type(None)), 'choices_str': ['balanced']},
-    'bootstrap': {'type': bool},
-    'oob_score': {'type': bool},
-    'random_state': {'type': (int, type(None))},
-    'n_jobs': {'type': int},
-    'test_size': {'type': float, 'min': 0.1, 'max': 0.5},
+    'n_estimators':      {'type': int,               'min': 10,  'max': 1000},
+    'criterion':         {'type': str,               'choices': ['gini', 'entropy']},
+    'max_depth':         {'type': (int, type(None)), 'min': 1,   'max': 100},
+    'max_features':      {'type': (str, float, type(None)), 'choices': ['sqrt', 'log2']},
+    'min_samples_split': {'type': int,               'min': 2,   'max': 50},
+    'min_samples_leaf':  {'type': int,               'min': 1,   'max': 50},
+    'class_weight':      {'type': (str, type(None)), 'choices': ['balanced', 'balanced_subsample']},
+    'bootstrap':         {'type': bool},
+    'oob_score':         {'type': bool},
+    'random_state':      {'type': (int, type(None))},
+    'n_jobs':            {'type': int},
+    'test_size':         {'type': float,             'min': 0.1, 'max': 0.5},
 }
 
 
 def load_config() -> dict:
-    """Membaca konfigurasi dari JSON file."""
+    """
+    Membaca konfigurasi dari JSON file.
+    FIX 4: Tangkap error jika JSON corrupt agar app tidak crash saat startup.
+    """
     if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, 'r') as f:
-            return json.load(f)
+        try:
+            with open(CONFIG_PATH, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(
+                f'model_config.json tidak bisa dibaca ({e}), '
+                f'menggunakan DEFAULT_CONFIG sebagai fallback.'
+            )
     return DEFAULT_CONFIG.copy()
 
 
@@ -72,7 +85,6 @@ def validate_config(config: dict) -> list:
 
     hp = config.get('hyperparameters', {})
     tc = config.get('training_config', {})
-
     all_params = {**hp, **tc}
 
     for param, value in all_params.items():
@@ -84,7 +96,9 @@ def validate_config(config: dict) -> list:
         # Cek type
         if not isinstance(value, rules['type']):
             if value is not None:
-                errors.append(f"{param}: tipe harus {rules['type']}, dapat {type(value).__name__}")
+                errors.append(
+                    f"{param}: tipe harus {rules['type']}, dapat {type(value).__name__}"
+                )
                 continue
 
         if value is None:
@@ -98,10 +112,12 @@ def validate_config(config: dict) -> list:
             if value > rules['max']:
                 errors.append(f"{param}: nilai maksimum {rules['max']}, dapat {value}")
 
-        # Cek choices
+        # FIX 3: Sekarang 'choices' dipakai konsisten untuk semua string parameter
         if 'choices' in rules and isinstance(value, str):
             if value not in rules['choices']:
-                errors.append(f"{param}: pilihan harus {rules['choices']}, dapat '{value}'")
+                errors.append(
+                    f"{param}: pilihan harus {rules['choices']}, dapat '{value}'"
+                )
 
     return errors
 
@@ -118,6 +134,6 @@ def get_training_config() -> dict:
     return config.get('training_config', DEFAULT_CONFIG['training_config'])
 
 
-# Backward compatibility
-RANDOM_FOREST_PARAMS = get_random_forest_params()
-TRAINING_CONFIG = get_training_config()
+# FIX 1: Hapus eksekusi di module level — dipindah ke lazy load via fungsi di atas.
+# Dulu: RANDOM_FOREST_PARAMS = get_random_forest_params()  ← crash jika JSON corrupt
+# Sekarang: panggil get_random_forest_params() langsung saat dibutuhkan di prediction.py
