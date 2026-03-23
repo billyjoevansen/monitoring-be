@@ -46,11 +46,21 @@ def save_archive():
                 filename_siverval=filename_siverval,
             )
         elif archive_type == 'predict':
+            # Ambil model metrics dari .pkl saat menyimpan arsip
+            model_info_data = None
+            try:
+                from services.prediction import load_model
+                md = load_model()
+                model_info_data = md.get('metrics')
+            except Exception:
+                pass  # Model belum ditraining atau pkl lama — simpan tanpa metrics
+
             result = save_prediction(
                 summary=summary,
                 detail=detail,
                 filename_rdkk=filename_rdkk,
                 filename_siverval=filename_siverval,
+                model_info=model_info_data,
             )
         else:
             return jsonify({

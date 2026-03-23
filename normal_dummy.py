@@ -19,7 +19,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 
 # Jumlah petani
-N_PETANI = 100
+N_PETANI = 500
 np.random.seed(99)
 
 os.makedirs('dummy_data', exist_ok=True)

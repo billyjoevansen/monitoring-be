@@ -224,12 +224,44 @@ def model_info():
         if not os.path.exists(MODEL_PATH):
             return jsonify({'error': 'Model belum dilatih.', 'trained': False}), 404
 
+        # Info file
         stat = os.stat(MODEL_PATH)
+        size_kb       = round(stat.st_size / 1024, 2)
+        last_modified = datetime.fromtimestamp(stat.st_mtime).isoformat()
+
+        # Info dari dalam .pkl
+        model_data = load_model()
+        model    = model_data['model']
+        features = model_data['features']
+        params   = model_data.get('params', {})
+
+        # Baca metrik dari pkl (disimpan saat training)
+        metrics    = model_data.get('metrics', {})
+        trained_at = model_data.get('trained_at', last_modified)
+
         return jsonify({
-            'trained': True,
-            'model_path': MODEL_PATH,
-            'size_kb': round(stat.st_size / 1024, 2),
-            'last_modified': datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            'trained':       True,
+            'trained_at':    trained_at,
+            'last_modified': last_modified,
+            'size_kb':       size_kb,
+            'model_info': {
+                'accuracy':          metrics.get('accuracy'),
+                'f1_score_weighted': metrics.get('f1_score_weighted'),
+                'oob_score':         metrics.get('oob_score'),
+                'algorithm':         'RandomForestClassifier',
+                'total_features':    len(features),
+                'features':          features,
+                'hyperparameters': {
+                    'n_estimators':      params.get('n_estimators'),
+                    'criterion':         params.get('criterion'),
+                    'max_depth':         params.get('max_depth'),
+                    'max_features':      params.get('max_features'),
+                    'min_samples_split': params.get('min_samples_split'),
+                    'min_samples_leaf':  params.get('min_samples_leaf'),
+                    'class_weight':      params.get('class_weight'),
+                    'oob_score':         params.get('oob_score'),
+                },
+            },
         }), 200
 
     except Exception as e:

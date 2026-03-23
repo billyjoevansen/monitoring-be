@@ -60,15 +60,23 @@ def save_reconciliation(summary: dict, detail: list, filename_rdkk: str, filenam
     return {'session_id': session_id, 'total_saved': len(detail_records)}
 
 
-def save_prediction(summary: dict, detail: list, filename_rdkk: str, filename_siverval: str) -> dict:
+def save_prediction(summary: dict, detail: list, filename_rdkk: str, filename_siverval: str, model_info: dict = None) -> dict:
     """
     Menyimpan hasil prediksi model ke Supabase.
 
     Tabel: prediksi_sessions (ringkasan per sesi)
     Tabel: prediksi_detail   (detail per petani)
+
+    Args:
+        model_info: dict berisi accuracy, f1_score_weighted, oob_score
+                    dari load_model()['metrics']. Opsional — jika None,
+                    kolom metrik akan diisi NULL di database.
     """
     supabase = get_supabase()
     now = datetime.now(timezone.utc).isoformat()
+
+    # Ekstrak model metrics (bisa None jika model lama belum punya field metrics)
+    mi = model_info or {}
 
     # 1. Simpan sesi prediksi
     session_data = {
@@ -80,6 +88,9 @@ def save_prediction(summary: dict, detail: list, filename_rdkk: str, filename_si
         'total_tidak_normal': summary['tidak_normal'],
         'persentase_normal': summary['persentase_normal'],
         'persentase_tidak_normal': summary['persentase_tidak_normal'],
+        'model_accuracy': mi.get('accuracy'),
+        'model_f1_score': mi.get('f1_score_weighted'),
+        'model_oob_score': mi.get('oob_score'),
     }
 
     result = supabase.table('prediksi_sessions').insert(session_data).execute()
@@ -96,9 +107,9 @@ def save_prediction(summary: dict, detail: list, filename_rdkk: str, filename_si
             'status': petani['status'],
             'confidence': petani['confidence'],
             'kios_sesuai': petani['kios_sesuai'],
-            'total_pupuk_diajukan': petani.get('total_pupuk_diajukan', 0),
-            'total_pupuk_ditebus': petani.get('total_pupuk_ditebus', 0),
-            'selisih_total_pupuk': petani.get('selisih_total_pupuk', 0),
+            'total_pupuk_diajukan': petani.get('total_pupuk_diajukan_kg') or petani.get('total_pupuk_diajukan', 0),
+            'total_pupuk_ditebus': petani.get('total_pupuk_ditebus_kg') or petani.get('total_pupuk_ditebus', 0),
+            'selisih_total_pupuk': petani.get('selisih_total_kg') or petani.get('selisih_total_pupuk', 0),
         }
         detail_records.append(record)
 

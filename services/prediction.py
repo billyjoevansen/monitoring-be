@@ -152,10 +152,17 @@ def train_model(df: pd.DataFrame) -> dict:
     # =====================================================
     # SIMPAN MODEL
     # =====================================================
+    from datetime import datetime, timezone
     model_data = {
         'model': model,
         'features': selected_features,
         'params': RF_PARAMS,
+        'metrics': {
+            'accuracy':          round(accuracy, 4),
+            'f1_score_weighted': round(f1_weighted, 4),
+            'oob_score':         round(model.oob_score_, 4) if RF_PARAMS['oob_score'] else None,
+        },
+        'trained_at': datetime.now(timezone.utc).isoformat(),
     }
     joblib.dump(model_data, MODEL_PATH, compress=3)
 
