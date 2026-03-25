@@ -8,6 +8,8 @@ from routes.reconcile import reconcile_bp
 from routes.config import config_bp
 from routes.archive import archive_bp
 from routes.visualize import visualize_bp
+from dotenv import load_dotenv
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,12 +20,18 @@ logging.basicConfig(
 def create_app():
     app = Flask(__name__)
 
-    # CORS — read origins from environment
-    allowed_origins = os.getenv(
+    raw_origins = os.getenv(
         'CORS_ORIGINS',
-        'http://localhost:3000,http://127.0.0.1:3000'
-    ).split(',')
+        'http://localhost:3000',
+        'http://127.0.0.1:3000'
+    )
 
+    # CORS — read origins from environment
+    allowed_origins = [
+        origin.strip()
+        for origin in raw_origins.split(',')
+        if origin.strip()
+    ]
     CORS(app, resources={
         r"/api/*": {
             "origins": [origin.strip() for origin in allowed_origins],
