@@ -34,9 +34,9 @@ instance/
 # =====================
 # Machine Learning / Model
 # =====================
-*.pkl
-*.joblib
-models/
+# *.pkl
+# *.joblib
+# models/
 checkpoints/
 
 # =====================

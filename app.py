@@ -20,21 +20,16 @@ logging.basicConfig(
 def create_app():
     app = Flask(__name__)
 
-    raw_origins = os.getenv(
-        'CORS_ORIGINS',
-        'http://localhost:3000',
-    )
+    raw_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000')
+    allowed_origins = [origin.strip() for origin in raw_origins.split(',') if origin.strip()]
+    
+    # Tambahkan log ini untuk melihat di Vercel Logs apakah IP sudah masuk
+    print(f"DEBUG: Allowed Origins are: {allowed_origins}")
 
-    # CORS — read origins from environment
-    allowed_origins = [
-        origin.strip()
-        for origin in raw_origins.split(',')
-        if origin.strip()
-    ]
     CORS(app, resources={
         r"/api/*": {
-            "origins": [origin.strip() for origin in allowed_origins],
-            "methods": ["GET", "POST", "PUT", "DELETE"],
+            "origins": allowed_origins, # Gunakan list hasil split tadi
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], # Tambah OPTIONS
             "allow_headers": ["Content-Type", "Authorization"],
         }
     })
