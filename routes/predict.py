@@ -198,15 +198,23 @@ def classify_route():
         tidak_normal_count = int((predictions == 1).sum())
         total             = len(predictions)
 
+        model_info = {}
+        try:
+            model_data = load_model()
+            model_info = model_data.get('metrics', {}) or {}
+        except Exception:
+            model_info = {}
+
         return jsonify({
             'summary': {
-                'total_petani':              total,
-                'normal':                    normal_count,
-                'tidak_normal':              tidak_normal_count,
-                'persentase_normal':         round(normal_count / total * 100, 2) if total > 0 else 0,
-                'persentase_tidak_normal':   round(tidak_normal_count / total * 100, 2) if total > 0 else 0,
+                'total_petani': total,
+                'normal': normal_count,
+                'tidak_normal': tidak_normal_count,
+                'persentase_normal': round(normal_count / total * 100, 2) if total > 0 else 0,
+                'persentase_tidak_normal': round(tidak_normal_count / total * 100, 2) if total > 0 else 0,
             },
             'detail': result_detail,
+            'model_info': model_info,
         }), 200
 
     except FileNotFoundError:

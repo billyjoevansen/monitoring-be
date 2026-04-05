@@ -37,6 +37,9 @@ def save_archive():
         filename_rdkk = data.get('filename_rdkk', 'unknown')
         filename_siverval = data.get('filename_siverval', 'unknown')
 
+        # Konsisten: siapkan model_info untuk response
+        model_info = {}
+
         # Simpan berdasarkan tipe
         if archive_type == 'reconcile':
             result = save_reconciliation(
@@ -47,31 +50,36 @@ def save_archive():
             )
         elif archive_type == 'predict':
             # Ambil model metrics dari .pkl saat menyimpan arsip
-            model_info_data = None
             try:
                 from services.prediction import load_model
                 md = load_model()
-                model_info_data = md.get('metrics')
+                model_info = md.get('metrics', {}) or {}
             except Exception:
-                pass  # Model belum ditraining atau pkl lama — simpan tanpa metrics
+                model_info = {}  # Model belum ditraining atau pkl lama
 
             result = save_prediction(
                 summary=summary,
                 detail=detail,
                 filename_rdkk=filename_rdkk,
                 filename_siverval=filename_siverval,
-                model_info=model_info_data,
+                model_info=model_info,
             )
         else:
             return jsonify({
                 'error': f'Tipe arsip tidak valid: "{archive_type}". Gunakan "reconcile" atau "predict".'
             }), 400
 
-        return jsonify({
+        response_payload = {
             'message': 'Data berhasil disimpan ke arsip.',
             'session_id': result['session_id'],
             'total_saved': result['total_saved'],
-        }), 200
+        }
+
+        # Hanya predict yang mengembalikan model_info
+        if archive_type == 'predict':
+            response_payload['model_info'] = model_info
+
+        return jsonify(response_payload), 200
 
     except Exception as e:
         return jsonify({'error': f'Gagal menyimpan arsip: {str(e)}'}), 500
