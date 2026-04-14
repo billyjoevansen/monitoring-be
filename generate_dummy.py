@@ -263,24 +263,24 @@ def generate_dummy():
         nama_kios_tebus = kios_data[kode_kios_tebus]
 
         siverval_records.append({
-            'no': no,
-            'Kabupaten': np.random.choice(kabupaten_list),
-            'kecamatan': np.random.choice(kecamatan_list),
-            'no transaksi': f'TRX-{2025}-{no:05d}',
-            'kode kios': kode_kios_tebus,
-            'nama kios': nama_kios_tebus,
+            'NO': no,
+            'KABUPATEN': np.random.choice(kabupaten_list),
+            'KECAMATAN': np.random.choice(kecamatan_list),
+            'NO TRANSAKSI': f'TRX-{2025}-{no:05d}',
+            'KODE KIOS': kode_kios_tebus,
+            'NAMA KIOS': nama_kios_tebus,
             'NIK': nik,
-            'nama petani': nama,
-            'urea': urea_tebus,
-            'npk': npk_tebus,
-            'sp36': sp36_tebus,
-            'za': za_tebus,
-            'npk formula': npk_formula_tebus,
-            'organik': organik_tebus,
-            'organik cair': organik_cair_tebus,
-            'tgl tebus': f'2025-{np.random.randint(1, 7):02d}-{np.random.randint(1, 29):02d}',
-            'tgl input': f'2025-{np.random.randint(1, 7):02d}-{np.random.randint(1, 29):02d}',
-            'status petani': 'Aktif',
+            'NAMA PETANI': nama,
+            'UREA': urea_tebus,
+            'NPK': npk_tebus,
+            'SP36': sp36_tebus,
+            'ZA': za_tebus,
+            'NPK FORMULA': npk_formula_tebus,
+            'ORGANIK': organik_tebus,
+            'ORGANIK CAIR': organik_cair_tebus,
+            'TGL TEBUS': f'2025-{np.random.randint(1, 7):02d}-{np.random.randint(1, 29):02d}',
+            'TGL INPUT': f'2025-{np.random.randint(1, 7):02d}-{np.random.randint(1, 29):02d}',
+            'STATUS PETANI': 'Aktif',
         })
         no += 1
 
@@ -289,24 +289,24 @@ def generate_dummy():
         nik_baru = f'35{"".join([str(np.random.randint(0, 10)) for _ in range(14)])}'
         kios_random = np.random.choice(kode_kios_list)
         siverval_records.append({
-            'no': no,
-            'Kabupaten': np.random.choice(kabupaten_list),
-            'kecamatan': np.random.choice(kecamatan_list),
-            'no transaksi': f'TRX-{2025}-{no:05d}',
-            'kode kios': kios_random,
-            'nama kios': kios_data[kios_random],
+            'NO': no,
+            'KABUPATEN': np.random.choice(kabupaten_list),
+            'KECAMATAN': np.random.choice(kecamatan_list),
+            'NO TRANSAKSI': f'TRX-{2025}-{no:05d}',
+            'KODE KIOS': kios_random,
+            'NAMA KIOS': kios_data[kios_random],
             'NIK': nik_baru,
-            'nama petani': f'Petani Tanpa RDKK {i + 1}',
-            'urea': np.random.choice([100, 200]),
-            'npk': np.random.choice([50, 100]),
-            'sp36': 0,
-            'za': np.random.choice([0, 50]),
-            'npk formula': 0,
-            'organik': 0,
-            'organik cair': 0,
-            'tgl tebus': '2025-03-15',
-            'tgl input': '2025-03-16',
-            'status petani': 'Aktif',
+            'NAMA PETANI': f'Petani Tanpa RDKK {i + 1}',
+            'UREA': np.random.choice([100, 200]),
+            'NPK': np.random.choice([50, 100]),
+            'SP36': 0,
+            'ZA': np.random.choice([0, 50]),
+            'NPK FORMULA': 0,
+            'ORGANIK': 0,
+            'ORGANIK CAIR': 0,
+            'TGL TEBUS': '2025-03-15',
+            'TGL INPUT': '2025-03-16',
+            'STATUS PETANI': 'Aktif',
         })
         no += 1
 
@@ -320,19 +320,19 @@ def generate_dummy():
 
     for i in range(0, len(siverval_df) - 10, 7):
         faktor_noise = np.random.uniform(0.85, 1.15)
-        if 'urea' in siverval_df.columns:
-            siverval_df.loc[i, 'urea'] = int(siverval_df.loc[i, 'urea'] * faktor_noise)
-        if 'npk' in siverval_df.columns:
-            siverval_df.loc[i, 'npk'] = int(siverval_df.loc[i, 'npk'] * faktor_noise)
+        if 'UREA' in siverval_df.columns:
+            siverval_df.loc[i, 'UREA'] = int(siverval_df.loc[i, 'UREA'] * faktor_noise)
+        if 'NPK' in siverval_df.columns:
+            siverval_df.loc[i, 'NPK'] = int(siverval_df.loc[i, 'NPK'] * faktor_noise)
 
     for i in range(5):
         idx = np.random.randint(0, len(siverval_df) - 10)
         rdkk_idx = idx if idx < N_PETANI else 0
         kode_kios_rdkk_val = rdkk_df.loc[rdkk_idx, 'Kode Kios Pengecer']
-        siverval_df.loc[idx, 'kode kios'] = kode_kios_rdkk_val
-        siverval_df.loc[idx, 'nama kios'] = kios_data.get(kode_kios_rdkk_val, 'Unknown')
-        if 'urea' in siverval_df.columns:
-            siverval_df.loc[idx, 'urea'] = int(rdkk_df.loc[rdkk_idx, 'Pupuk Urea (Kg) MT1'] * 0.99)
+        siverval_df.loc[idx, 'KODE KIOS'] = kode_kios_rdkk_val
+        siverval_df.loc[idx, 'NAMA KIOS'] = kios_data.get(kode_kios_rdkk_val, 'Unknown')
+        if 'UREA' in siverval_df.columns:
+            siverval_df.loc[idx, 'UREA'] = int(rdkk_df.loc[rdkk_idx, 'Pupuk Urea (Kg) MT1'] * 0.99)
 
     # =====================================================
     # 4. SIMPAN KE EXCEL
