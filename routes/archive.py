@@ -3,22 +3,9 @@ from services.database import save_reconciliation, save_prediction
 
 archive_bp = Blueprint('archive', __name__)
 
-
 @archive_bp.route('/api/archive/save', methods=['POST'])
 def save_archive():
-    """
-    Endpoint untuk menyimpan hasil ke Supabase.
-    Dipanggil dari frontend saat user klik tombol SIMPAN atau CETAK.
-
-    Body JSON:
-    {
-        "type": "reconcile" | "predict",
-        "filename_rdkk": "data_rdkk.xlsx",
-        "filename_siverval": "data_siverval.xlsx",
-        "summary": { ... },
-        "detail": [ ... ]
-    }
-    """
+    
     try:
         data = request.get_json()
 

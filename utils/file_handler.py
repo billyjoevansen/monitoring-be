@@ -2,10 +2,8 @@ import os
 import pandas as pd
 from werkzeug.datastructures import FileStorage
 
-
 # =====================================================
 # KONFIGURASI NAMA KOLOM
-# Mapping nama kolom dari Excel ke nama standar internal
 # =====================================================
 
 ALLOWED_EXTENSIONS = {'.xlsx', '.xls'}
@@ -65,7 +63,7 @@ SIVERVAL_COLUMNS = {
     'ORGANIK CAIR': 'organik_cair_tebus',
     'TGL TEBUS': 'tgl_tebus',
     'TGL INPUT': 'tgl_input',
-    'STATUS PETANI': 'status_petani',
+    'STATUS': 'status_petani',
     'KABUPATEN': 'kabupaten',
     'KECAMATAN': 'kecamatan',
 }
@@ -84,17 +82,6 @@ def validate_file_type(file: FileStorage) -> None:
 
 
 def parse_excel(file: FileStorage, header_row: int = 0) -> pd.DataFrame:
-    """
-    Membaca file Excel yang diupload dan mengembalikan DataFrame.
-
-    Args:
-        file: File yang diupload
-        header_row: Baris ke-berapa yang jadi header (0-indexed).
-                    Default 0 (baris pertama).
-
-    Raises:
-        ValueError: Jika file bukan Excel, kosong, corrupt, atau tidak ada data.
-    """
     validate_file_type(file)
 
     try:
@@ -126,18 +113,17 @@ def standardize_rdkk(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.rename(columns=rename_map)
 
-    # Pastikan kolom NIK berupa string
+    # kolom NIK = string
     if 'nik' in df.columns:
-        df['nik'] = df['nik'].astype(str).str.strip()
+        df['nik'] = df['nik'].astype(str).str.strip().str.lstrip("'")
 
-    # Nilai Record 'Gapoktan' bisa kosong
+    # Nilai Record 'Gapoktan'
     if 'gapoktan' not in df.columns:
         df['gapoktan'] = ''
     else:
         df['gapoktan'] = df['gapoktan'].fillna('').astype(str).str.strip()
 
-    # Fill NaN pada kolom pupuk dan luas lahan dengan 0
-    # (petani yang tidak ikut MT2/MT3 akan punya nilai kosong di Excel)
+    # NaN pada kolom pupuk dan luas lahan = 0
     numeric_prefixes = ('urea_', 'npk_', 'npk_formula_', 'organik_', 'za_', 'luas_lahan_')
     for col in df.columns:
         if any(col.startswith(p) for p in numeric_prefixes):
@@ -159,13 +145,21 @@ def standardize_siverval(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.rename(columns=rename_map)
 
-    # Pastikan kolom NIK berupa string
+    # kolom NIK = string
     if 'nik' in df.columns:
-        df['nik'] = df['nik'].astype(str).str.strip()
-        # Buang baris kosong di akhir file Excel (NIK kosong atau 'nan')
+        df['nik'] = df['nik'].astype(str).str.strip().str.lstrip("'")
         df = df[df['nik'].notna() & (df['nik'] != '') & (df['nik'] != 'nan')]
 
-    # Konversi kolom numerik pupuk
+    # Pencegahan error nan karena ada 
+    if 'NO' in df.columns:
+        def is_numeric_row(val):
+            try:
+                float(str(val).strip().lstrip("'"))
+                return True
+            except (ValueError, TypeError):
+                return False
+        df = df[df['NO'].apply(is_numeric_row)]
+
     pupuk_cols = [
         'urea_tebus', 'npk_tebus', 'sp36_tebus', 'za_tebus',
         'npk_formula_tebus', 'organik_tebus', 'organik_cair_tebus'

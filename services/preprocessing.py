@@ -147,7 +147,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # =====================================================
     if 'kode_kios_rdkk' in df.columns and 'kode_kios_siverval' in df.columns:
         df['kode_kios_rdkk'] = df['kode_kios_rdkk'].astype(str).str.strip()
-        df['kode_kios_siverval'] = df['kode_kios_siverval'].astype(str).str.strip()
+        df['kode_kios_siverval'] = df['kode_kios_siverval'].astype(str).str.strip().str.lstrip("'")
         df['kios_sesuai'] = (df['kode_kios_rdkk'] == df['kode_kios_siverval']).astype(int)
     else:
         df['kios_sesuai'] = 1
