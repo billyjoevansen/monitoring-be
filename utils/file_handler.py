@@ -115,7 +115,7 @@ def standardize_rdkk(df: pd.DataFrame) -> pd.DataFrame:
 
     # kolom NIK = string
     if 'nik' in df.columns:
-        df['nik'] = df['nik'].astype(str).str.strip().str.lstrip("'")
+        df['nik'] = df['nik'].astype(str).str.strip().str.lstrip("'`")
 
     # Nilai Record 'Gapoktan'
     if 'gapoktan' not in df.columns:
@@ -147,7 +147,7 @@ def standardize_siverval(df: pd.DataFrame) -> pd.DataFrame:
 
     # kolom NIK = string
     if 'nik' in df.columns:
-        df['nik'] = df['nik'].astype(str).str.strip().str.lstrip("'")
+        df['nik'] = df['nik'].astype(str).str.strip().str.lstrip("'`")
         df = df[df['nik'].notna() & (df['nik'] != '') & (df['nik'] != 'nan')]
 
     # Pencegahan error nan karena ada 
