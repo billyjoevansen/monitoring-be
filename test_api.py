@@ -39,11 +39,6 @@ if r.status_code == 200:
     print(f"      Tebus Melebihi    : {status['tebus_melebihi']}")
     print(f"      Belum Menebus     : {status['belum_menebus']}")
 
-    print(f"\n   🏪 Kesesuaian Kios:")
-    kios = summary['kios']
-    print(f"      Sesuai        : {kios['sesuai']} ({kios['persentase_sesuai']}%)")
-    print(f"      Tidak Sesuai  : {kios['tidak_sesuai']}")
-
     print(f"\n   🧪 Rekonsiliasi Per Jenis Pupuk:")
     for pupuk, data in summary['pupuk'].items():
         print(f"      {pupuk.upper():15} | Ajukan: {data['total_diajukan_kg']:>10.0f} kg | "
@@ -145,7 +140,6 @@ if r.status_code == 200:
         print(f"\n   {status_icon} {petani['nama_petani']} ({petani['nik']})")
         print(f"      Status     : {petani['status']}")
         print(f"      Confidence : {petani['confidence']}")
-        print(f"      Kios Sesuai: {petani['kios_sesuai']}")
 else:
     print(f"Error: {predict_result}")
 

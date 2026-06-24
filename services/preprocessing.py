@@ -143,17 +143,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df['rata_rata_rasio_tebus'] = df.apply(calc_avg_rasio, axis=1)
 
     # =====================================================
-    # 4. KESESUAIAN KIOS (untuk labeling)
-    # =====================================================
-    if 'kode_kios_rdkk' in df.columns and 'kode_kios_siverval' in df.columns:
-        df['kode_kios_rdkk'] = df['kode_kios_rdkk'].astype(str).str.strip()
-        df['kode_kios_siverval'] = df['kode_kios_siverval'].astype(str).str.strip().str.lstrip("'")
-        df['kios_sesuai'] = (df['kode_kios_rdkk'] == df['kode_kios_siverval']).astype(int)
-    else:
-        df['kios_sesuai'] = 1
-
-    # =====================================================
-    # 5. TOTAL PUPUK DITEBUS
+    # 4. TOTAL PUPUK DITEBUS
     # =====================================================
     tebus_pupuk_cols = ['urea_tebus', 'npk_tebus', 'za_tebus',
                         'npk_formula_tebus', 'organik_tebus']
@@ -272,7 +262,6 @@ LABEL_FEATURES = [
     'selisih_za',
     'selisih_npk_formula',
     'selisih_organik',
-    'kios_sesuai',
     'tebus_diluar_rdkk',
 ]
 

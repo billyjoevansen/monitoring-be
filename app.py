@@ -6,8 +6,8 @@ from routes.train import train_bp
 from routes.predict import predict_bp
 from routes.reconcile import reconcile_bp
 from routes.config import config_bp
-from routes.archive import archive_bp
 from routes.visualize import visualize_bp
+from routes.encryption import encryption_bp
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -42,8 +42,8 @@ def create_app():
     app.register_blueprint(predict_bp)
     app.register_blueprint(reconcile_bp)
     app.register_blueprint(config_bp)
-    app.register_blueprint(archive_bp)
     app.register_blueprint(visualize_bp)
+    app.register_blueprint(encryption_bp)
 
     # Health check
     @app.route('/api/health', methods=['GET'])

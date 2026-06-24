@@ -132,8 +132,3 @@ def get_training_config() -> dict:
     """Mengambil konfigurasi training dari config."""
     config = load_config()
     return config.get('training_config', DEFAULT_CONFIG['training_config'])
-
-
-# FIX 1: Hapus eksekusi di module level — dipindah ke lazy load via fungsi di atas.
-# Dulu: RANDOM_FOREST_PARAMS = get_random_forest_params()  ← crash jika JSON corrupt
-# Sekarang: panggil get_random_forest_params() langsung saat dibutuhkan di prediction.py

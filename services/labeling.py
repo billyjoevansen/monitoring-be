@@ -8,9 +8,8 @@ def assign_labels(df: pd.DataFrame) -> pd.DataFrame:
 
     TIDAK NORMAL jika SALAH SATU kondisi terpenuhi:
     1. Rasio tebus salah satu pupuk > 1.0 (tebus melebihi pengajuan)
-    2. Kios penebusan TIDAK sesuai dengan kios RDKK
-    3. Selisih (diajukan - ditebus) > 0 (jatah tidak ditebus semua)
-    4. Menebus pupuk tapi tidak punya pengajuan di RDKK
+    2. Selisih (diajukan - ditebus) > 0 (jatah tidak ditebus semua)
+    3. Menebus pupuk tapi tidak punya pengajuan di RDKK
 
     Selain itu → NORMAL
     """
@@ -44,11 +43,7 @@ def assign_labels(df: pd.DataFrame) -> pd.DataFrame:
                     f"Rasio tebus {pupuk_name}: {row[col]:.2f} (melebihi pengajuan)"
                 )
 
-        # --- Kondisi 2: Kios tidak sesuai ---
-        if 'kios_sesuai' in df.columns and row['kios_sesuai'] == 0:
-            reasons.append("Kios penebusan tidak sesuai dengan RDKK")
-
-        # --- Kondisi 3: Selisih > 0 (jatah tidak ditebus semua) ---
+        # --- Kondisi 2: Selisih > 0 (jatah tidak ditebus semua) ---
         for col in selisih_cols:
             if col in df.columns and row[col] > 0:
                 pupuk_name = col.replace('selisih_', '').upper()
@@ -56,7 +51,7 @@ def assign_labels(df: pd.DataFrame) -> pd.DataFrame:
                     f"Selisih {pupuk_name}: {row[col]:.0f} kg (tidak ditebus semua)"
                 )
 
-        # --- Kondisi 4: Tebus tanpa pengajuan (rasio = 999) ---
+        # --- Kondisi 3: Tebus tanpa pengajuan (rasio = 999) ---
         for col in rasio_cols:
             if col in df.columns and row[col] == 999.0:
                 pupuk_name = col.replace('rasio_tebus_', '').upper()

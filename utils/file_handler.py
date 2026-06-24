@@ -150,7 +150,7 @@ def standardize_siverval(df: pd.DataFrame) -> pd.DataFrame:
         df['nik'] = df['nik'].astype(str).str.strip().str.lstrip("'`")
         df = df[df['nik'].notna() & (df['nik'] != '') & (df['nik'] != 'nan')]
 
-    # Pencegahan error nan karena ada 
+    # Pencegahan error nan karena
     if 'NO' in df.columns:
         def is_numeric_row(val):
             try:

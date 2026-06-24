@@ -56,7 +56,6 @@ def predict_route():
                 'poktan': str(row.get('poktan', '')),
                 'status': row.get('prediksi_label', ''),
                 'confidence': round(float(row.get('confidence', 0)), 4),
-                'kios_sesuai': bool(row.get('kios_sesuai', True)),
                 'total_pupuk_diajukan_kg': float(row.get('total_pupuk_diajukan', 0)),
                 'total_pupuk_ditebus_kg': float(row.get('total_pupuk_ditebus', 0)),
                 'selisih_total_kg': float(row.get('selisih_total', 0)),
@@ -159,7 +158,6 @@ def classify_route():
                 # Fitur tambahan (disertakan agar aman jika model diretrain)
                 'total_luas_lahan':            luas_lahan,
                 'jumlah_mt_aktif':             int(petani.get('jumlah_mt_aktif', 0)),
-                'kios_sesuai': 1 if petani.get('kios_sesuai') in [True, 'true', 'True', 1, '1'] else 0,
                 'ada_penebusan':               1 if total_ditebus > 0 else 0,
                 'selisih_jenis_pupuk':         0,
                 'jenis_pupuk_diajukan':        sum(1 for v in [urea_aj,npk_aj,za_aj,npkf_aj,org_aj] if v > 0),
@@ -186,7 +184,6 @@ def classify_route():
                 'nama_petani':            str(original.get('nama_petani', '')),
                 'nik':                    str(original.get('nik', '')),
                 'poktan':                 str(original.get('poktan', '')),
-                'kios_sesuai':            original.get('kios_sesuai', False),
                 'total_pupuk_diajukan_kg': float(df.iloc[i]['total_pupuk_diajukan']),
                 'total_pupuk_ditebus_kg':  float(df.iloc[i]['total_pupuk_ditebus']),
                 'selisih_total_kg':        float(original.get('selisih_total_kg', 0)),

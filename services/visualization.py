@@ -221,36 +221,3 @@ def plot_reconciliation_summary(summary: dict) -> str:
 
     fig.tight_layout()
     return fig_to_base64(fig)
-
-
-def plot_kios_compliance(summary: dict) -> str:
-    """
-    Visualisasi kesesuaian kios (donut chart).
-    """
-    fig, ax = plt.subplots(figsize=(8, 6))
-
-    kios = summary['kios']
-    sizes = [kios['sesuai'], kios['tidak_sesuai']]
-    labels = ['Kios Sesuai', 'Kios Tidak Sesuai']
-    colors = ['#4CAF50', '#F44336']
-
-    wedges, texts, autotexts = ax.pie(
-        sizes, labels=labels, colors=colors,
-        autopct='%1.1f%%', startangle=90,
-        pctdistance=0.75, textprops={'fontsize': 12},
-    )
-
-    for autotext in autotexts:
-        autotext.set_fontweight('bold')
-
-    # Donut hole
-    centre_circle = plt.Circle((0, 0), 0.50, fc='white')
-    ax.add_artist(centre_circle)
-
-    ax.text(0, 0, f'{kios["sesuai"]}/{kios["sesuai"] + kios["tidak_sesuai"]}',
-            ha='center', va='center', fontsize=20, fontweight='bold')
-
-    ax.set_title('Kesesuaian Kios Penebusan', fontsize=14, fontweight='bold')
-
-    fig.tight_layout()
-    return fig_to_base64(fig)

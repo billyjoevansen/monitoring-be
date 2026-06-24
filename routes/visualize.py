@@ -5,7 +5,6 @@ from services.visualization import (
     plot_classification_report,
     plot_label_distribution,
     plot_reconciliation_summary,
-    plot_kios_compliance,
 )
 
 visualize_bp = Blueprint('visualize', __name__)
@@ -83,10 +82,6 @@ def visualize_reconciliation():
         # 1. Status Penebusan + Perbandingan Pupuk
         if summary:
             charts['reconciliation_summary'] = plot_reconciliation_summary(summary)
-
-        # 2. Kesesuaian Kios
-        if 'kios' in summary:
-            charts['kios_compliance'] = plot_kios_compliance(summary)
 
         return jsonify({
             'charts': charts,
