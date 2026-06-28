@@ -8,15 +8,23 @@ from werkzeug.datastructures import FileStorage
 
 ALLOWED_EXTENSIONS = {'.xlsx', '.xls'}
 
+# Kolom wajib untuk validasi saat upload
+RDKK_REQUIRED_COLUMNS = ['KTP', 'Nama Petani', 'Luas Lahan (Ha) MT1']
+SIVERVAL_REQUIRED_COLUMNS = ['NIK', 'NAMA PETANI', 'UREA', 'NPK']
+
 # Kolom RDKK
 RDKK_COLUMNS = {
-    'Nama Petani': 'nama_petani',
-    'KTP': 'nik',
+    'Nama Penyuluh': 'penyuluh',
+    'Kode Desa': 'kode_desa',
     'Kode Kios Pengecer': 'kode_kios_rdkk',
     'Nama Kios Pengecer': 'nama_kios_rdkk',
-    'Nama Poktan': 'poktan',
     'Gapoktan': 'gapoktan',
-    'Nama Penyuluh': 'penyuluh',
+    'Nama Poktan': 'poktan',
+    'Nama Petani': 'nama_petani',
+    'KTP': 'nik',
+    'Tempat Lahir': 'tempat_lahir',
+    'Tanggal Lahir': 'tanggal_lahir',
+    'Nama Ibu Kandung': 'nama_ibu_kandung',
     'Alamat': 'alamat',
     'Subsektor': 'subsektor',
 
@@ -50,10 +58,14 @@ RDKK_COLUMNS = {
 
 # Kolom SIVERVAL
 SIVERVAL_COLUMNS = {
-    'NIK': 'nik',
-    'NAMA PETANI': 'nama_petani_siverval',
+    'NO': 'no_urut',
+    'KABUPATEN': 'kabupaten',
+    'KECAMATAN': 'kecamatan',
+    'NO TRANSAKSI': 'no_transaksi',
     'KODE KIOS': 'kode_kios_siverval',
     'NAMA KIOS': 'nama_kios_siverval',
+    'NIK': 'nik',
+    'NAMA PETANI': 'nama_petani_siverval',
     'UREA': 'urea_tebus',
     'NPK': 'npk_tebus',
     'SP36': 'sp36_tebus',
@@ -64,8 +76,6 @@ SIVERVAL_COLUMNS = {
     'TGL TEBUS': 'tgl_tebus',
     'TGL INPUT': 'tgl_input',
     'STATUS': 'status_petani',
-    'KABUPATEN': 'kabupaten',
-    'KECAMATAN': 'kecamatan',
 }
 
 def validate_file_type(file: FileStorage) -> None:
@@ -150,15 +160,15 @@ def standardize_siverval(df: pd.DataFrame) -> pd.DataFrame:
         df['nik'] = df['nik'].astype(str).str.strip().str.lstrip("'`")
         df = df[df['nik'].notna() & (df['nik'] != '') & (df['nik'] != 'nan')]
 
-    # Pencegahan error nan karena
-    if 'NO' in df.columns:
+    # Pencegahan error nan karena baris kosong
+    if 'no_urut' in df.columns:
         def is_numeric_row(val):
             try:
                 float(str(val).strip().lstrip("'"))
                 return True
             except (ValueError, TypeError):
                 return False
-        df = df[df['NO'].apply(is_numeric_row)]
+        df = df[df['no_urut'].apply(is_numeric_row)]
 
     pupuk_cols = [
         'urea_tebus', 'npk_tebus', 'sp36_tebus', 'za_tebus',
@@ -168,4 +178,29 @@ def standardize_siverval(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
+    # no_urut = integer
+    if 'no_urut' in df.columns:
+        df['no_urut'] = pd.to_numeric(df['no_urut'], errors='coerce').fillna(0).astype(int)
+
+    # no_transaksi = string
+    if 'no_transaksi' in df.columns:
+        df['no_transaksi'] = df['no_transaksi'].fillna('').astype(str).str.strip()
+
     return df
+
+
+def validate_columns(df: pd.DataFrame, required: list, file_type: str) -> None:
+    """
+    Validasi apakah kolom yang diperlukan ada di DataFrame.
+    Dilakukan SEBELUM standardize (menggunakan nama kolom asli dari Excel).
+    """
+    missing = []
+    for col in required:
+        found = any(c.strip().lower() == col.lower() for c in df.columns)
+        if not found:
+            missing.append(col)
+    if missing:
+        raise ValueError(
+            f'File {file_type} tidak memiliki kolom yang diperlukan: {", ".join(missing)}. '
+            f'Pastikan file sesuai format standar.'
+        )

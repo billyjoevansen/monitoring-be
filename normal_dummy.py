@@ -15,6 +15,13 @@ File output: dummy_data/data_rdkk_normal.xlsx
 import pandas as pd
 import numpy as np
 import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from dotenv import load_dotenv
+load_dotenv()
+
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 
@@ -23,6 +30,40 @@ N_PETANI = 500
 np.random.seed(99)
 
 os.makedirs('dummy_data', exist_ok=True)
+
+
+def fetch_kecamatan_desa():
+    """Ambil data kecamatan & desa dari Supabase."""
+    try:
+        from config.supabase_client import get_supabase
+        supabase = get_supabase()
+        result = supabase.table('kecamatan_desa').select('kode_desa, nama_desa, kecamatan').execute()
+        rows = result.data or []
+        if not rows:
+            raise ValueError("Tabel kecamatan_desa kosong")
+
+        mapping = {}
+        for row in rows:
+            kec = str(row['kecamatan']).strip().title()
+            mapping.setdefault(kec, []).append((str(row['kode_desa']).strip(), str(row['nama_desa']).strip()))
+        print(f"  [OK] Ambil {len(rows)} desa dari Supabase ({len(mapping)} kecamatan)")
+        return mapping
+    except Exception as e:
+        print(f"  [WARN] Gagal ambil dari Supabase: {e}")
+        print("  -> Pakai data hardcoded fallback")
+        return {
+            'WALANTAKA': [('3673011001', 'WALANTAKA'), ('3673011002', 'CIGOONG'), ('3673011003', 'KALODRAN')],
+            'CURUG': [('3673011004', 'CURUG'), ('3673011005', 'CIPETE'), ('3673011006', 'CURUG MANIS')],
+            'CIPOCOK JAYA': [('3673011007', 'BANJARSARI'), ('3673011008', 'DALUNG'), ('3673011009', 'GELAM')],
+            'KASEMEN': [('3673011010', 'KASEMEN'), ('3673011011', 'BANTEN'), ('3673011012', 'BENDUNG')],
+            'TAKTAKAN': [('3673011013', 'TAKTAKAN'), ('3673011014', 'CILOWONG'), ('3673011015', 'DRANGONG')],
+            'SERANG': [('3673011016', 'SERANG'), ('3673011017', 'CIPARE'), ('3673011018', 'KOTA BARU')],
+        }
+
+
+print("[*] Mengambil data kecamatan/desa dari Supabase...")
+kecamatan_desa_map = fetch_kecamatan_desa()
+all_desa = [(kd, nd, kec) for kec, items in kecamatan_desa_map.items() for kd, nd in items]
 
 # =====================================================
 # MASTER DATA
@@ -50,13 +91,18 @@ poktan_list = [
     'Sri Rejeki', 'Tani Mulyo', 'Karya Tani', 'Maju Jaya',
     'Harapan Baru', 'Mekar Sari', 'Subur Makmur', 'Berkah Tani',
 ]
-desa_list = [
-    'Mancak', 'Karangsari', 'Banjarsari', 'Sidodadi', 'Cikeusal',
-    'Cilowong', 'Drangong', 'Kalang Anyar', 'Cipocok Jaya',
-]
 kabupaten_list = ['Kota Serang', 'Kab. Serang', 'Kab. Pandeglang']
-kecamatan_list = ['Walantaka', 'Curug', 'Cipocok Jaya', 'Kasemen', 'Taktakan']
 komoditas_list = ['Padi', 'Jagung', 'Kedelai', 'Cabai', 'Bawang Merah']
+
+# Pilih kecamatan & desa untuk setiap petani dari data Supabase
+petani_kecamatan = []
+petani_kode_desa = []
+petani_nama_desa = []
+for _ in range(N_PETANI):
+    kd, nd, kec = all_desa[np.random.randint(0, len(all_desa))]
+    petani_kecamatan.append(kec)
+    petani_kode_desa.append(kd)
+    petani_nama_desa.append(nd)
 
 # =====================================================
 # 1. GENERATE DATA RDKK
@@ -74,6 +120,7 @@ kode_kios_rdkk = [np.random.choice(kode_kios_list) for _ in range(N_PETANI)]
 # Pupuk per MT — nilai integer bersih (tidak ada float agar selisih = 0 persis)
 rdkk = {
     'Nama Penyuluh':       [f'Penyuluh {chr(65 + i % 10)}' for i in range(N_PETANI)],
+    'Kode Desa':           petani_kode_desa,
     'Kode Kios Pengecer':  kode_kios_rdkk,
     'Nama Kios Pengecer':  [kios_data[k] for k in kode_kios_rdkk],
     'Gapoktan':            [None] * N_PETANI,
@@ -81,8 +128,8 @@ rdkk = {
     'Nama Petani':         nama_petani,
     'KTP':                 niks,
     'Alamat': [
-        f'Desa {np.random.choice(desa_list)} RT {np.random.randint(1,10):02d}/{np.random.randint(1,10):02d}'
-        for _ in range(N_PETANI)
+        f'Desa {petani_nama_desa[i]} RT {np.random.randint(1,10):02d}/{np.random.randint(1,10):02d}'
+        for i in range(N_PETANI)
     ],
     'Subsektor': ['Tanaman Pangan'] * N_PETANI,
 
@@ -142,7 +189,7 @@ for i in range(N_PETANI):
     siverval_records.append({
         'no':            i + 1,
         'Kabupaten':     np.random.choice(kabupaten_list),
-        'kecamatan':     np.random.choice(kecamatan_list),
+        'kecamatan':     petani_kecamatan[i],
         'no transaksi':  f'TRX-2025-{i+1:05d}',
         'kode kios':     kios,                   # ← SAMA dengan RDKK
         'nama kios':     kios_data[kios],
@@ -194,16 +241,16 @@ for row_idx, row in enumerate(siverval_df.values, 3):
 wb.save(siverval_path)
 
 print('=' * 55)
-print('✅ DATA DUMMY NORMAL BERHASIL DIBUAT!')
+print('DATA DUMMY NORMAL BERHASIL DIBUAT!')
 print('=' * 55)
 print(f'  RDKK    : {rdkk_path}  ({len(rdkk_df)} petani)')
 print(f'  SIVERVAL: {siverval_path}  ({len(siverval_df)} transaksi)')
 print()
 print('Kenapa semua NORMAL?')
-print('  ✓ tebus = total MT1+MT2+MT3 persis (selisih=0)')
-print('  ✓ kios tebus = kios RDKK')
-print('  ✓ sp36 = 0, organik_cair = 0')
-print('  ✓ tidak ada blok noise yang mengubah nilai')
+print('  - tebus = total MT1+MT2+MT3 persis (selisih=0)')
+print('  - kios tebus = kios RDKK')
+print('  - sp36 = 0, organik_cair = 0')
+print('  - tidak ada blok noise yang mengubah nilai')
 print()
 print('Gunakan file ini untuk menguji endpoint /api/predict')
 print('setelah training dengan data campuran normal.')

@@ -7,9 +7,47 @@ import pandas as pd
 import numpy as np
 import os
 import glob
+import sys
+
+# Tambah path backend agar bisa import modul
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from dotenv import load_dotenv
+load_dotenv()
 
 # Jumlah petani dummy
 N_PETANI = 500
+
+
+def fetch_kecamatan_desa():
+    """Ambil data kecamatan & desa dari Supabase.
+    Return: dict {kecamatan_upper: [(kode_desa, nama_desa), ...]}
+    """
+    try:
+        from config.supabase_client import get_supabase
+        supabase = get_supabase()
+        result = supabase.table('kecamatan_desa').select('kode_desa, nama_desa, kecamatan').execute()
+        rows = result.data or []
+        if not rows:
+            raise ValueError("Tabel kecamatan_desa kosong")
+
+        mapping = {}
+        for row in rows:
+            kec = str(row['kecamatan']).strip().title()
+            mapping.setdefault(kec, []).append((str(row['kode_desa']).strip(), str(row['nama_desa']).strip()))
+        print(f"  [OK] Ambil {len(rows)} desa dari Supabase ({len(mapping)} kecamatan)")
+        return mapping
+    except Exception as e:
+        print(f"  [WARN] Gagal ambil dari Supabase: {e}")
+        print("  -> Pakai data hardcoded fallback")
+        return {
+            'WALANTAKA': [('3673011001', 'WALANTAKA'), ('3673011002', 'CIGOONG'), ('3673011003', 'KALODRAN')],
+            'CURUG': [('3673011004', 'CURUG'), ('3673011005', 'CIPETE'), ('3673011006', 'CURUG MANIS')],
+            'CIPOCOK JAYA': [('3673011007', 'BANJARSARI'), ('3673011008', 'DALUNG'), ('3673011009', 'GELAM')],
+            'KASEMEN': [('3673011010', 'KASEMEN'), ('3673011011', 'BANTEN'), ('3673011012', 'BENDUNG')],
+            'TAKTAKAN': [('3673011013', 'TAKTAKAN'), ('3673011014', 'CILOWONG'), ('3673011015', 'DRANGONG')],
+            'SERANG': [('3673011016', 'SERANG'), ('3673011017', 'CIPARE'), ('3673011018', 'KOTA BARU')],
+        }
 
 
 def get_next_file_number(folder: str) -> str:
@@ -50,6 +88,12 @@ def generate_dummy():
     suffix = get_next_file_number('dummy_data')
     seed = abs(hash(suffix)) % (2**31)
     np.random.seed(seed)
+
+    print("[*] Mengambil data kecamatan/desa dari Supabase...")
+    kecamatan_desa_map = fetch_kecamatan_desa()
+    kecamatan_list = sorted(kecamatan_desa_map.keys())
+    # Flat list semua (kode_desa, nama_desa) untuk dipilih random
+    all_desa = [(kd, nd, kec) for kec, items in kecamatan_desa_map.items() for kd, nd in items]
 
     # =====================================================
     # 1. GENERATE DATA RDKK
@@ -96,10 +140,6 @@ def generate_dummy():
     'Sida Mukti', 'Maju Bersama', 'Tani Mandiri', 'Hurip', 'Mutiara Tani',
     'Cipta Karya', 'Tunas Harapan', 'Sari Bumi', 'Agro Lestari', 'Tani Sejahtera'
     ]
-    gapoktan_list = [
-        'Gapoktan Walantaka', 'Gapoktan Curug', 'Gapoktan Cipocok Jaya',
-        'Gapoktan Kasemen', 'Gapoktan Taktakan', 'Gapoktan Serang',
-    ]
 
     # Daerah (Serang & Banten)
     tempat_lahir_list = [
@@ -111,31 +151,30 @@ def generate_dummy():
     'Pontianak', 'Balikpapan', 'Makassar', 'Manado', 'Denpasar', 
     'Mataram', 'Kupang', 'Ambon', 'Jayapura'
     ]
-    desa_list = [
-        'Mancak', 'Karangsari', 'Banjarsari', 'Sidodadi', 'Cikeusal',
-        'Cilowong', 'Drangong', 'Kalang Anyar', 'Cipocok Jaya',
-        'Banjaragung', 'Dalung', 'Gelam', 'Karundang',
-        'Panancangan', 'Tembong',
-    ]
     kabupaten_list = [
         'Kota Serang', 'Kab. Serang', 'Kab. Pandeglang',
         'Kab. Lebak', 'Kota Cilegon',
     ]
-    kecamatan_list = [
-        'Walantaka', 'Curug', 'Cipocok Jaya', 'Kasemen',
-        'Taktakan', 'Serang', 'Mancak', 'Cikeusal',
-        'Petir', 'Baros', 'Pabuaran', 'Kramatwatu',
-    ]
+
+    # Pilih kecamatan & desa untuk setiap petani dari data Supabase
+    petani_kecamatan = []  # simpan kecamatan tiap petani untuk sinkronisasi SIVERVAL
+    petani_kode_desa = []
+    petani_nama_desa = []
+    for _ in range(N_PETANI):
+        kd, nd, kec = all_desa[np.random.randint(0, len(all_desa))]
+        petani_kecamatan.append(kec)
+        petani_kode_desa.append(kd)
+        petani_nama_desa.append(nd)
 
     # Komoditas
     komoditas_list = ['Padi', 'Jagung', 'Kedelai', 'Cabai', 'Bawang Merah']
 
     rdkk_data = {
         'Nama Penyuluh': [f'Penyuluh {chr(65 + i % 10)}' for i in range(N_PETANI)],
-        'Kode Desa': [f'D{np.random.randint(100, 999)}' for _ in range(N_PETANI)],
+        'Kode Desa': petani_kode_desa,
         'Kode Kios Pengecer': [np.random.choice(kode_kios_list) for _ in range(N_PETANI)],
         'Nama Kios Pengecer': [],
-        'Gapoktan': [None] * N_PETANI,#[np.random.choice(gapoktan_list) for _ in range(N_PETANI)],
+        'Gapoktan': [None] * N_PETANI,
         'Nama Poktan': [np.random.choice(poktan_list) for _ in range(N_PETANI)],
         'Nama Petani': nama_petani,
         'KTP': niks,
@@ -149,8 +188,8 @@ def generate_dummy():
             for _ in range(N_PETANI)
         ],
         'Alamat': [
-            f'Desa {np.random.choice(desa_list)} RT {np.random.randint(1, 10):02d}/{np.random.randint(1, 10):02d}'
-            for _ in range(N_PETANI)
+            f'Desa {petani_nama_desa[i]} RT {np.random.randint(1, 10):02d}/{np.random.randint(1, 10):02d}'
+            for i in range(N_PETANI)
         ],
         'Subsektor': ['Tanaman Pangan'] * N_PETANI,
 
@@ -207,7 +246,8 @@ def generate_dummy():
         # Skenario penebusan
         scenario = np.random.random()
 
-        if scenario < 0.30:
+        if scenario < 0.35:
+            # NORMAL: tebus semua, kios sesuai
             urea_tebus = urea_rdkk
             npk_tebus = npk_rdkk
             za_tebus = za_rdkk
@@ -217,9 +257,9 @@ def generate_dummy():
             organik_cair_tebus = 0
             kode_kios_tebus = kode_kios_rdkk
 
-        elif scenario < 0.55:
-            faktor = np.random.uniform(0.3, 0.9)
-            urea_tebus = int(urea_rdkk * faktor)
+        elif scenario < 0.65:
+            # Tidak tebus semua (selisih > 0)
+            urea_tebus = int(urea_rdkk * np.random.uniform(0.3, 0.9))
             npk_tebus = int(npk_rdkk * np.random.uniform(0.4, 0.95))
             za_tebus = int(za_rdkk * np.random.uniform(0.0, 0.8))
             npk_formula_tebus = int(npk_formula_rdkk * np.random.uniform(0.0, 0.9))
@@ -228,9 +268,9 @@ def generate_dummy():
             organik_cair_tebus = 0
             kode_kios_tebus = kode_kios_rdkk
 
-        elif scenario < 0.75:
-            faktor = np.random.uniform(1.1, 2.0)
-            urea_tebus = int(urea_rdkk * faktor)
+        elif scenario < 0.85:
+            # Tebus melebihi pengajuan (rasio > 1)
+            urea_tebus = int(urea_rdkk * np.random.uniform(1.1, 2.0))
             npk_tebus = int(npk_rdkk * np.random.uniform(1.0, 1.5))
             za_tebus = int(za_rdkk * np.random.uniform(0.8, 1.3))
             npk_formula_tebus = int(npk_formula_rdkk * np.random.uniform(0.9, 1.2))
@@ -239,18 +279,8 @@ def generate_dummy():
             organik_cair_tebus = 0
             kode_kios_tebus = kode_kios_rdkk
 
-        elif scenario < 0.90:
-            urea_tebus = int(urea_rdkk * np.random.uniform(0.7, 1.0))
-            npk_tebus = int(npk_rdkk * np.random.uniform(0.7, 1.0))
-            za_tebus = int(za_rdkk * np.random.uniform(0.5, 1.0))
-            npk_formula_tebus = int(npk_formula_rdkk * np.random.uniform(0.5, 1.0))
-            organik_tebus = int(organik_rdkk * np.random.uniform(0.5, 1.0))
-            sp36_tebus = 0
-            organik_cair_tebus = 0
-            kios_lain = [k for k in kode_kios_list if k != kode_kios_rdkk]
-            kode_kios_tebus = np.random.choice(kios_lain)
-
         else:
+            # Tebus pupuk di luar RDKK (SP36/Organik Cair)
             urea_tebus = int(urea_rdkk * np.random.uniform(0.8, 1.0))
             npk_tebus = int(npk_rdkk * np.random.uniform(0.8, 1.0))
             za_tebus = int(za_rdkk * np.random.uniform(0.5, 1.0))
@@ -265,7 +295,7 @@ def generate_dummy():
         siverval_records.append({
             'NO': no,
             'KABUPATEN': np.random.choice(kabupaten_list),
-            'KECAMATAN': np.random.choice(kecamatan_list),
+            'KECAMATAN': petani_kecamatan[i],
             'NO TRANSAKSI': f'TRX-{2025}-{no:05d}',
             'KODE KIOS': kode_kios_tebus,
             'NAMA KIOS': nama_kios_tebus,
@@ -325,15 +355,6 @@ def generate_dummy():
         if 'NPK' in siverval_df.columns:
             siverval_df.loc[i, 'NPK'] = int(siverval_df.loc[i, 'NPK'] * faktor_noise)
 
-    for i in range(5):
-        idx = np.random.randint(0, len(siverval_df) - 10)
-        rdkk_idx = idx if idx < N_PETANI else 0
-        kode_kios_rdkk_val = rdkk_df.loc[rdkk_idx, 'Kode Kios Pengecer']
-        siverval_df.loc[idx, 'KODE KIOS'] = kode_kios_rdkk_val
-        siverval_df.loc[idx, 'NAMA KIOS'] = kios_data.get(kode_kios_rdkk_val, 'Unknown')
-        if 'UREA' in siverval_df.columns:
-            siverval_df.loc[idx, 'UREA'] = int(rdkk_df.loc[rdkk_idx, 'Pupuk Urea (Kg) MT1'] * 0.99)
-
     # =====================================================
     # 4. SIMPAN KE EXCEL
     # =====================================================
@@ -374,30 +395,29 @@ def generate_dummy():
     # 5. OUTPUT
     # =====================================================
     print("=" * 60)
-    print("✅ DATA DUMMY BERHASIL DIBUAT!")
+    print("DATA DUMMY BERHASIL DIBUAT!")
     print("=" * 60)
-    print(f"\n📁 File tersimpan di:")
+    print(f"\nFile tersimpan di:")
     print(f"   - {rdkk_path}")
     print(f"   - {siverval_path}")
-    print(f"\n📊 Statistik:")
+    print(f"\nStatistik:")
     print(f"   - RDKK    : {len(rdkk_df)} petani")
     print(f"   - SIVERVAL: {len(siverval_df)} transaksi")
-    print(f"\n🎯 Skenario yang di-generate:")
-    print(f"   - ~30% NORMAL (tebus semua, kios sesuai)")
-    print(f"   - ~25% Tidak tebus semua (selisih > 0)")
+    print(f"\nSkenario yang di-generate:")
+    print(f"   - ~35% NORMAL (tebus semua, kios sesuai)")
+    print(f"   - ~30% Tidak tebus semua (selisih > 0)")
     print(f"   - ~20% Tebus melebihi pengajuan (rasio > 1)")
-    print(f"   - ~15% Kios tidak sesuai")
-    print(f"   - ~10% Tebus pupuk di luar RDKK (SP36/Organik Cair)")
+    print(f"   - ~15% Tebus pupuk di luar RDKK (SP36/Organik Cair)")
     print(f"   - +10  Petani tanpa pengajuan RDKK")
-    print(f"   - ✅ Noise & edge case ditambahkan")
+    print(f"   - Noise & edge case ditambahkan")
 
     # List semua file yang ada
     all_files = sorted(glob.glob(os.path.join('dummy_data', '*.xlsx')))
-    print(f"\n📂 Semua file di dummy_data/:")
+    print(f"\nSemua file di dummy_data/:")
     for f in all_files:
         print(f"   - {os.path.basename(f)}")
 
-    print(f"\n🚀 Jalankan lagi 'python generate_dummy.py' untuk generate data baru!")
+    print(f"\nJalankan lagi 'python generate_dummy.py' untuk generate data baru!")
 
 
 if __name__ == '__main__':

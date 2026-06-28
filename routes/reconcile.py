@@ -1,5 +1,8 @@
 from flask import Blueprint, request, jsonify
-from utils.file_handler import parse_excel, standardize_rdkk, standardize_siverval
+from utils.file_handler import (
+    parse_excel, standardize_rdkk, standardize_siverval,
+    validate_columns, RDKK_REQUIRED_COLUMNS, SIVERVAL_REQUIRED_COLUMNS,
+)
 from services.preprocessing import merge_data, engineer_features
 from services.reconciliation import reconcile
 
@@ -25,10 +28,14 @@ def reconcile_route():
         if rdkk_file.filename == '' or siverval_file.filename == '':
             return jsonify({'error': 'Nama file tidak boleh kosong.'}), 400
 
-        # --- Parse & Standarisasi ---
+        # --- Parse & Validasi Kolom ---
         rdkk_df = parse_excel(rdkk_file, header_row=0)
         siverval_df = parse_excel(siverval_file, header_row=1)
 
+        validate_columns(rdkk_df, RDKK_REQUIRED_COLUMNS, 'RDKK')
+        validate_columns(siverval_df, SIVERVAL_REQUIRED_COLUMNS, 'SIVERVAL')
+
+        # --- Standarisasi ---
         rdkk_df = standardize_rdkk(rdkk_df)
         siverval_df = standardize_siverval(siverval_df)
 
@@ -38,6 +45,17 @@ def reconcile_route():
 
         # --- Rekonsiliasi ---
         result = reconcile(featured_df)
+
+        # --- Cek kecocokan NIK ---
+        nik_rdkk = set(rdkk_df['nik'].unique())
+        nik_siverval = set(siverval_df['nik'].unique())
+        nik_match_count = len(nik_rdkk & nik_siverval)
+
+        if nik_match_count <= 0:
+            result['warnings'] = [
+                'Tidak ditemukan kecocokan NIK antara data RDKK dan Si-Verval. '
+                'Pastikan data yang diinput sudah benar.'
+            ]
 
         return jsonify(result), 200
 
