@@ -9,6 +9,7 @@ from routes.config import config_bp
 from routes.visualize import visualize_bp
 from routes.encryption import encryption_bp
 from routes.documents import documents_bp
+from routes.stats import stats_bp
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -46,6 +47,7 @@ def create_app():
     app.register_blueprint(visualize_bp)
     app.register_blueprint(encryption_bp)
     app.register_blueprint(documents_bp)
+    app.register_blueprint(stats_bp)
 
     # Health check
     @app.route('/api/health', methods=['GET'])
