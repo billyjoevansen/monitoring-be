@@ -3,6 +3,7 @@ import logging
 import pandas as pd
 from flask import Blueprint, request, jsonify
 from services.kecamatan_lookup import get_kecamatan_from_rdkk, get_kecamatan_from_siverval
+from utils.file_handler import standardize_rdkk, standardize_siverval
 
 documents_bp = Blueprint('documents', __name__)
 logger = logging.getLogger(__name__)
@@ -40,6 +41,9 @@ def identify_kecamatan():
             logger.info(f"RDKK kolom terbaca: {list(df.columns)}")
             data = df.fillna('').to_dict(orient='records')
             kecamatan_list = get_kecamatan_from_rdkk(data)
+
+            # Standardize untuk hitung unique NIK
+            df_std = standardize_rdkk(df.copy())
         else:
             # SIVERVAL: header di baris kedua (index 1), ada baris judul
             df = pd.read_excel(excel_buffer, header=1, engine='openpyxl')
@@ -48,9 +52,17 @@ def identify_kecamatan():
             data = df.fillna('').to_dict(orient='records')
             kecamatan_list = get_kecamatan_from_siverval(data)
 
-        logger.info(f"Kecamatan terdeteksi: {kecamatan_list}")
+            # Standardize untuk hitung unique NIK
+            df_std = standardize_siverval(df.copy())
 
-        return jsonify({'kecamatan': kecamatan_list}), 200
+        # Hitung total petani dari unique NIK
+        total_petani = 0
+        if 'nik' in df_std.columns:
+            total_petani = int(df_std['nik'].nunique())
+
+        logger.info(f"Kecamatan terdeteksi: {kecamatan_list}, Total petani: {total_petani}")
+
+        return jsonify({'kecamatan': kecamatan_list, 'total_petani': total_petani}), 200
 
     except Exception as e:
         logger.error(f"Gagal identifikasi kecamatan: {e}")

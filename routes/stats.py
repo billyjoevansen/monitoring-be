@@ -1,6 +1,9 @@
 from flask import Blueprint, jsonify
 from config.supabase_client import get_supabase_admin
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 stats_bp = Blueprint('stats', __name__)
 
@@ -23,16 +26,36 @@ def stats_summary():
     try:
         supabase = get_supabase_admin()
 
-        # Ambil semua summary dari reconciliation_archives
+        # Hitung jumlah dokumen RDKK dan SIVerval + total petani dari supporting_documents
+        rdkk_docs = (
+            supabase.table('supporting_documents')
+            .select('*')
+            .eq('document_type', 'rdkk')
+            .execute()
+        )
+        total_rdkk_docs = len(rdkk_docs.data) if rdkk_docs.data else 0
+        total_petani_rec = sum(d.get('total_petani', 0) for d in (rdkk_docs.data or []))
+        logger.info(f"RDKK docs: {total_rdkk_docs}, total_petani: {total_petani_rec}, data: {rdkk_docs.data}")
+
+        siverval_docs = (
+            supabase.table('supporting_documents')
+            .select('*')
+            .eq('document_type', 'siverval')
+            .execute()
+        )
+        total_siverval_docs = len(siverval_docs.data) if siverval_docs.data else 0
+        total_petani_cls = sum(d.get('total_petani', 0) for d in (siverval_docs.data or []))
+        logger.info(f"SIVerval docs: {total_siverval_docs}, total_petani: {total_petani_cls}, data: {siverval_docs.data}")
+
+        # Ambil semua summary dari reconciliation_archives (untuk status penebusan)
         recs = (
             supabase.table('reconciliation_archives')
-            .select('summary')
+            .select('*')
             .execute()
         )
 
-        # Agregasi rekonsiliasi
+        # Agregasi status penebusan dari arsip
         total_rec_archives = len(recs.data) if recs.data else 0
-        total_petani_rec = 0
         total_lengkap = 0
         total_sebagian = 0
         total_melebihi = 0
@@ -40,7 +63,6 @@ def stats_summary():
 
         for row in (recs.data or []):
             summary = parse_json(row.get('summary'))
-            total_petani_rec += summary.get('total_petani', 0)
             sp = parse_json(summary.get('status_penebusan'))
             total_lengkap += sp.get('tebus_lengkap', 0)
             total_sebagian += sp.get('tebus_sebagian', 0)
@@ -55,19 +77,17 @@ def stats_summary():
         # Ambil semua summary & model_info dari classification_archives
         cls = (
             supabase.table('classification_archives')
-            .select('summary,model_info')
+            .select('*')
             .execute()
         )
 
         total_cls_archives = len(cls.data) if cls.data else 0
-        total_petani_cls = 0
         sum_akurasi = 0
         sum_persentase_normal = 0
         count_model = 0
 
         for row in (cls.data or []):
             summary = parse_json(row.get('summary'))
-            total_petani_cls += summary.get('total_petani', 0)
             sum_persentase_normal += summary.get('persentase_normal', 0)
 
             model_info = parse_json(row.get('model_info'))
@@ -83,7 +103,7 @@ def stats_summary():
 
         return jsonify({
             'reconciliation': {
-                'total_archives': total_rec_archives,
+                'total_rdkk_docs': total_rdkk_docs,
                 'total_petani': total_petani_rec,
                 'total_lengkap': total_lengkap,
                 'total_sebagian': total_sebagian,
@@ -92,7 +112,7 @@ def stats_summary():
                 'persentase_lengkap': persentase_lengkap,
             },
             'classification': {
-                'total_archives': total_cls_archives,
+                'total_siverval_docs': total_siverval_docs,
                 'total_petani': total_petani_cls,
                 'rata_rata_akurasi': rata_akurasi,
                 'rata_rata_persentase_normal': rata_persentase_normal,
