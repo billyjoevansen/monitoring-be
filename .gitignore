@@ -44,6 +44,7 @@ checkpoints/
 # =====================
 .env
 .env.*
+!.env.example
 
 # =====================
 # VS Code

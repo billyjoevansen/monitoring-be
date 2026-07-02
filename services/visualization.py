@@ -221,3 +221,140 @@ def plot_reconciliation_summary(summary: dict) -> str:
 
     fig.tight_layout()
     return fig_to_base64(fig)
+
+
+# =====================================================
+# K-FOLD CV VISUALIZATION
+# =====================================================
+
+def plot_cv_fold_scores(cv_results: list, best_params: dict) -> str:
+    """
+    Bar chart: F1 score per fold untuk kombinasi terbaik.
+    Garis horizontal = rata-rata, shading = std dev.
+    """
+    best = cv_results[0]
+    fold_scores = best['fold_scores']
+    mean_f1 = best['mean_f1']
+    std_f1 = best['std_f1']
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    folds = list(range(1, len(fold_scores) + 1))
+    colors = ['#4CAF50' if s >= mean_f1 else '#FF9800' for s in fold_scores]
+
+    bars = ax.bar(folds, fold_scores, color=colors, edgecolor='white', linewidth=1.5)
+
+    ax.axhline(y=mean_f1, color='#2196F3', linestyle='--', linewidth=2,
+               label=f'Mean: {mean_f1:.4f}')
+
+    ax.axhspan(mean_f1 - std_f1, mean_f1 + std_f1, alpha=0.15, color='#2196F3',
+               label=f'Std: \u00b1{std_f1:.4f}')
+
+    for bar, score in zip(bars, fold_scores):
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.002,
+                f'{score:.4f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+    params_str = ', '.join(f'{k}={v}' for k, v in best_params.items())
+    ax.set_xlabel('Fold')
+    ax.set_ylabel('F1 Score (Weighted)')
+    ax.set_title(f'K-Fold Cross Validation \u2014 Per Fold Performance\n{params_str}')
+    ax.set_xticks(folds)
+    ax.set_ylim(min(fold_scores) - 0.05, max(fold_scores) + 0.05)
+    ax.legend(loc='lower right')
+    ax.grid(axis='y', alpha=0.3)
+
+    fig.tight_layout()
+    return fig_to_base64(fig)
+
+
+def plot_cv_comparison(cv_results: list, top_n: int = 10) -> str:
+    """
+    Horizontal bar chart: Top N kombinasi terbaik dengan mean F1 +/- std.
+    """
+    top = cv_results[:top_n]
+
+    labels = []
+    for item in top:
+        p = item['params']
+        parts = []
+        if 'n_estimators' in p:
+            parts.append(f"n={p['n_estimators']}")
+        if 'max_depth' in p:
+            parts.append(f"d={p['max_depth'] if p['max_depth'] is not None else 'None'}")
+        if 'min_samples_leaf' in p:
+            parts.append(f"l={p['min_samples_leaf']}")
+        if 'min_samples_split' in p:
+            parts.append(f"s={p['min_samples_split']}")
+        labels.append(', '.join(parts))
+
+    means = [item['mean_f1'] for item in top]
+    stds = [item['std_f1'] for item in top]
+
+    labels = labels[::-1]
+    means = means[::-1]
+    stds = stds[::-1]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    colors = ['#2196F3' if i == len(labels) - 1 else '#90CAF9' for i in range(len(labels))]
+    bars = ax.barh(labels, means, xerr=stds, color=colors, edgecolor='white',
+                   linewidth=1.5, capsize=3)
+
+    for bar, mean, std in zip(bars, means, stds):
+        ax.text(bar.get_width() + std + 0.003, bar.get_y() + bar.get_height() / 2,
+                f'{mean:.4f} \u00b1{std:.4f}', ha='left', va='center', fontsize=9)
+
+    ax.set_xlabel('Mean F1 Score (Weighted)')
+    ax.set_title(f'Top {top_n} Hyperparameter Combinations (by CV F1)')
+    ax.set_xlim(0, max(means) + max(stds) + 0.1)
+    ax.grid(axis='x', alpha=0.3)
+
+    fig.tight_layout()
+    return fig_to_base64(fig)
+
+
+def plot_cv_boxplot(cv_results: list, top_n: int = 10) -> str:
+    """
+    Box plot: Distribusi fold scores untuk top N kombinasi.
+    """
+    top = cv_results[:top_n]
+
+    labels = []
+    all_scores = []
+    for item in top:
+        p = item['params']
+        parts = []
+        if 'n_estimators' in p:
+            parts.append(f"n={p['n_estimators']}")
+        if 'max_depth' in p:
+            parts.append(f"d={p['max_depth'] if p['max_depth'] is not None else 'None'}")
+        if 'min_samples_leaf' in p:
+            parts.append(f"l={p['min_samples_leaf']}")
+        if 'min_samples_split' in p:
+            parts.append(f"s={p['min_samples_split']}")
+        labels.append('#' + str(item['rank']) + ' ' + ', '.join(parts))
+        all_scores.append(item['fold_scores'])
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    bp = ax.boxplot(all_scores, labels=labels, patch_artist=True, notch=False,
+                    medianprops={'color': '#F44336', 'linewidth': 2},
+                    whiskerprops={'linewidth': 1.5},
+                    capprops={'linewidth': 1.5})
+
+    colors = plt.cm.Purples(np.linspace(0.3, 0.8, len(labels)))
+    for patch, color in zip(bp['boxes'], colors):
+        patch.set_facecolor(color)
+
+    means = [np.mean(scores) for scores in all_scores]
+    ax.scatter(range(1, len(labels) + 1), means, color='#FF9800', zorder=5,
+               s=50, marker='D', label='Mean')
+
+    ax.set_ylabel('F1 Score (Weighted)')
+    ax.set_title(f'Fold Score Distribution \u2014 Top {top_n} Combinations')
+    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=8)
+    ax.legend(loc='lower right')
+    ax.grid(axis='y', alpha=0.3)
+
+    fig.tight_layout()
+    return fig_to_base64(fig)

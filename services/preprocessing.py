@@ -6,6 +6,7 @@ def aggregate_rdkk(df: pd.DataFrame) -> pd.DataFrame:
     """
     Menggabungkan data pupuk dari MT1 + MT2 + MT3 menjadi total per petani.
     Karena SIVERVAL adalah data akumulasi (tidak per MT).
+    Kemudian groupby NIK agar satu petani = satu baris.
     """
     df = df.copy()
 
@@ -43,6 +44,19 @@ def aggregate_rdkk(df: pd.DataFrame) -> pd.DataFrame:
     diajukan_cols = [f'{p}_diajukan' for p in pupuk_types]
     df['total_pupuk_diajukan'] = df[diajukan_cols].sum(axis=1)
 
+    # --- Group by NIK (satu petani = satu baris) ---
+    # Kolom numerik di-sum, kolom non-numerik diambil 'first'
+    if 'nik' in df.columns:
+        numeric_cols = df.select_dtypes(include='number').columns.tolist()
+        non_numeric_cols = df.select_dtypes(exclude='number').columns.tolist()
+        if 'nik' in non_numeric_cols:
+            non_numeric_cols.remove('nik')
+
+        agg_dict = {col: 'sum' for col in numeric_cols}
+        agg_dict.update({col: 'first' for col in non_numeric_cols})
+
+        df = df.groupby('nik').agg(agg_dict).reset_index()
+
     return df
 
 
@@ -52,7 +66,7 @@ def merge_data(rdkk: pd.DataFrame, siverval: pd.DataFrame) -> pd.DataFrame:
     Menggunakan LEFT JOIN dari RDKK agar semua petani RDKK tetap ada,
     termasuk yang tidak menebus (akan terisi 0).
     """
-    # Aggregate RDKK dulu (total dari semua MT)
+    # Aggregate RDKK dulu (total dari semua MT + groupby NIK)
     rdkk_agg = aggregate_rdkk(rdkk)
 
     # Aggregate SIVERVAL per NIK (jika ada transaksi ganda)
@@ -69,21 +83,57 @@ def merge_data(rdkk: pd.DataFrame, siverval: pd.DataFrame) -> pd.DataFrame:
     # Hanya aggregate kolom yang ada
     existing_agg = {k: v for k, v in siverval_agg_cols.items() if k in siverval.columns}
 
-    # Tambahkan kolom non-numerik yang ingin dipertahankan
-    group_cols = ['nik']
+    # Kolom non-numerik yang ingin dipertahankan
     keep_first = {}
     for col in ['kode_kios_siverval', 'nama_kios_siverval', 'kabupaten', 'kecamatan']:
         if col in siverval.columns:
             keep_first[col] = 'first'
 
-    siverval_grouped = siverval.groupby('nik').agg({**existing_agg, **keep_first}).reset_index()
+    # Kolom tanggal dan status — ambil max (transaksi terakhir)
+    keep_max = {}
+    for col in ['tgl_tebus', 'tgl_input']:
+        if col in siverval.columns:
+            keep_max[col] = 'max'
+
+    # Kolom status — ambil value pertama
+    for col in ['status_petani']:
+        if col in siverval.columns:
+            keep_first[col] = 'first'
+
+    # Kolom no_transaksi — hitung jumlah transaksi
+    count_cols = {}
+    if 'no_transaksi' in siverval.columns:
+        count_cols['no_transaksi'] = 'count'
+
+    siverval_grouped = siverval.groupby('nik').agg({
+        **existing_agg,
+        **keep_first,
+        **keep_max,
+        **count_cols,
+    }).reset_index()
+
+    # Rename no_transaksi count → frekuensi_transaksi
+    if 'no_transaksi' in siverval_grouped.columns:
+        siverval_grouped = siverval_grouped.rename(
+            columns={'no_transaksi': 'frekuensi_transaksi'}
+        )
 
     # Merge
     merged = rdkk_agg.merge(siverval_grouped, on='nik', how='left')
 
     # Isi NaN dengan 0 untuk kolom tebus (petani yang tidak menebus)
-    tebus_cols = [c for c in merged.columns if '_tebus' in c]
+    # KECUALI kolom tanggal (tgl_tebus, tgl_input) — biarkan NaT
+    tebus_cols = [c for c in merged.columns if '_tebus' in c and c not in ('tgl_tebus',)]
     merged[tebus_cols] = merged[tebus_cols].fillna(0)
+
+    # Isi NaN frekuensi_transaksi dengan 0 (petani yang tidak menebus)
+    if 'frekuensi_transaksi' in merged.columns:
+        merged['frekuensi_transaksi'] = merged['frekuensi_transaksi'].fillna(0).astype(int)
+
+    # Pastikan kolom tanggal tetap bertipe datetime setelah merge
+    for col in ['tgl_tebus', 'tgl_input']:
+        if col in merged.columns:
+            merged[col] = pd.to_datetime(merged[col], errors='coerce')
 
     return merged
 
@@ -159,6 +209,15 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         df['selisih_total_pupuk'] = 0
 
     # =====================================================
+    # 6b. RASIO TOTAL PENEBUSAN TERHADAP TOTAL PENGAJUAN
+    # =====================================================
+    df['rasio_total_penebusan'] = np.where(
+        df['total_pupuk_diajukan'] > 0,
+        df['total_pupuk_ditebus'] / df['total_pupuk_diajukan'],
+        0.0
+    )
+
+    # =====================================================
     # 7. TEBUS PUPUK DI LUAR RDKK
     # =====================================================
     tebus_diluar = 0
@@ -210,17 +269,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
                 0
             )
 
-    # --- 8d. Variasi luas lahan antar MT ---
-    luas_cols = ['luas_lahan_mt1', 'luas_lahan_mt2', 'luas_lahan_mt3']
-    existing_luas = [c for c in luas_cols if c in df.columns]
-    if existing_luas:
-        df['std_luas_lahan'] = df[existing_luas].fillna(0).std(axis=1)
-        df['max_luas_lahan'] = df[existing_luas].fillna(0).max(axis=1)
-    else:
-        df['std_luas_lahan'] = 0
-        df['max_luas_lahan'] = 0
-
-    # --- 8e. Jumlah jenis pupuk yang diajukan (diversitas) ---
+    # --- 8d. Jumlah jenis pupuk yang diajukan (diversitas) ---
     pupuk_ajukan_cols = ['urea_diajukan', 'npk_diajukan', 'za_diajukan',
                          'npk_formula_diajukan', 'organik_diajukan']
     existing_ajukan = [c for c in pupuk_ajukan_cols if c in df.columns]
@@ -245,6 +294,20 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         0
     )
 
+    # =====================================================
+    # 9. FITUR BARU (SESUAI PDF - FITUR REKONSILIASI)
+    # =====================================================
+
+    # --- 9a. Flag Melebihi Kuota (binary: ada pupuk yang ditebus > alokasi) ---
+    melebihi_flags = []
+    for pupuk, (tebus_col, ajukan_col) in pupuk_mapping.items():
+        if tebus_col in df.columns and ajukan_col in df.columns:
+            melebihi_flags.append(df[tebus_col] > df[ajukan_col])
+    if melebihi_flags:
+        df['flag_melebihi_kuota'] = pd.concat(melebihi_flags, axis=1).any(axis=1).astype(int)
+    else:
+        df['flag_melebihi_kuota'] = 0
+
     return df
 
 
@@ -263,6 +326,8 @@ LABEL_FEATURES = [
     'selisih_npk_formula',
     'selisih_organik',
     'tebus_diluar_rdkk',
+    'flag_melebihi_kuota',
+    'status_petani',
 ]
 
 
@@ -281,28 +346,24 @@ FEATURE_COLUMNS = [
     'npk_per_ha',
     'total_pupuk_per_ha',
 
-    # Proporsi pengajuan
+    # Proporsi pengajuan (hanya Urea & NPK — ZA/NPK Formula/Organik importance 0)
     'proporsi_urea',
     'proporsi_npk',
-    'proporsi_za',
-    'proporsi_npk_formula',
-    'proporsi_organik',
 
-    # Proporsi penebusan
+    # Proporsi penebusan (hanya Urea & NPK)
     'proporsi_tebus_urea',
     'proporsi_tebus_npk',
-    'proporsi_tebus_za',
-    'proporsi_tebus_npk_formula',
-    'proporsi_tebus_organik',
 
-    # Variasi & diversitas
-    'std_luas_lahan',
-    'max_luas_lahan',
-    'jenis_pupuk_diajukan',
+    # Diversitas
     'jenis_pupuk_ditebus',
     'selisih_jenis_pupuk',
 
     # Pola perilaku
     'ada_penebusan',
     'rata_pupuk_per_mt',
+    'rasio_total_penebusan',
+    'selisih_total_pupuk',
+
+    # Fitur baru (sesuai PDF)
+    'flag_melebihi_kuota',
 ]

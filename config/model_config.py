@@ -67,7 +67,8 @@ def load_config() -> dict:
                 f'model_config.json tidak bisa dibaca ({e}), '
                 f'menggunakan DEFAULT_CONFIG sebagai fallback.'
             )
-    return DEFAULT_CONFIG.copy()
+    import copy
+    return copy.deepcopy(DEFAULT_CONFIG)
 
 
 def save_config(config: dict) -> None:

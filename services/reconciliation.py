@@ -77,6 +77,9 @@ def reconcile(df: pd.DataFrame) -> dict:
                 'status': status_pupuk,
             }
 
+        # Flag melebihi kuota: ada pupuk yang ditebus > alokasi
+        flag_melebihi = 1 if any(p['rasio'] > 1.0 for p in pupuk_detail.values()) else 0
+
         # Pupuk di luar RDKK (SP36, Organik Cair)
         sp36 = float(row.get('sp36_tebus', 0))
         organik_cair = float(row.get('organik_cair_tebus', 0))
@@ -98,6 +101,7 @@ def reconcile(df: pd.DataFrame) -> dict:
             'total_pupuk_ditebus_kg': float(row.get('total_pupuk_ditebus', 0)),
             'selisih_total_kg': float(row.get('selisih_total_pupuk', 0)),
             'status_tebus': row.get('status_tebus', ''),
+            'flag_melebihi_kuota': flag_melebihi,
         }
         detail.append(petani)
 

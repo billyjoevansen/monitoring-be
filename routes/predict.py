@@ -58,7 +58,7 @@ def predict_route():
                 'confidence': round(float(row.get('confidence', 0)), 4),
                 'total_pupuk_diajukan_kg': float(row.get('total_pupuk_diajukan', 0)),
                 'total_pupuk_ditebus_kg': float(row.get('total_pupuk_ditebus', 0)),
-                'selisih_total_kg': float(row.get('selisih_total', 0)),
+                'selisih_total_kg': float(row.get('selisih_total_pupuk', 0)),
             }
             detail.append(petani)
 
@@ -114,54 +114,61 @@ def classify_route():
             # Pupuk per jenis
             urea_aj  = float(pupuk.get('urea',        {}).get('diajukan_kg', 0))
             npk_aj   = float(pupuk.get('npk',         {}).get('diajukan_kg', 0))
-            za_aj    = float(pupuk.get('za',           {}).get('diajukan_kg', 0))
-            npkf_aj  = float(pupuk.get('npk_formula', {}).get('diajukan_kg', 0))
-            org_aj   = float(pupuk.get('organik',     {}).get('diajukan_kg', 0))
 
             urea_tb  = float(pupuk.get('urea',        {}).get('ditebus_kg', 0))
             npk_tb   = float(pupuk.get('npk',         {}).get('ditebus_kg', 0))
-            za_tb    = float(pupuk.get('za',           {}).get('ditebus_kg', 0))
-            npkf_tb  = float(pupuk.get('npk_formula', {}).get('ditebus_kg', 0))
-            org_tb   = float(pupuk.get('organik',     {}).get('ditebus_kg', 0))
 
-            # Proporsi pengajuan terhadap total diajukan
+            # Proporsi pengajuan (hanya Urea & NPK)
             proporsi_urea    = urea_aj  / total_diajukan if total_diajukan > 0 else 0
             proporsi_npk     = npk_aj   / total_diajukan if total_diajukan > 0 else 0
-            proporsi_za      = za_aj    / total_diajukan if total_diajukan > 0 else 0
-            proporsi_npkf    = npkf_aj  / total_diajukan if total_diajukan > 0 else 0
-            proporsi_organik = org_aj   / total_diajukan if total_diajukan > 0 else 0
 
-            # Proporsi penebusan terhadap total ditebus
+            # Proporsi penebusan (hanya Urea & NPK)
             prop_tb_urea  = urea_tb  / total_ditebus if total_ditebus > 0 else 0
             prop_tb_npk   = npk_tb   / total_ditebus if total_ditebus > 0 else 0
-            prop_tb_za    = za_tb    / total_ditebus if total_ditebus > 0 else 0
-            prop_tb_npkf  = npkf_tb  / total_ditebus if total_ditebus > 0 else 0
-            prop_tb_org   = org_tb   / total_ditebus if total_ditebus > 0 else 0
 
             # Intensitas per hektar
             urea_per_ha = urea_aj / luas_lahan if luas_lahan > 0 else 0
+            npk_per_ha = npk_aj / luas_lahan if luas_lahan > 0 else 0
+            total_pupuk_per_ha = total_diajukan / luas_lahan if luas_lahan > 0 else 0
+
+            # Rata-rata pupuk per MT
+            jumlah_mt = int(petani.get('jumlah_mt_aktif', 0))
+            rata_pupuk_per_mt = total_diajukan / jumlah_mt if jumlah_mt > 0 else 0
+
+            # Flag melebihi kuota (dari reconcile detail)
+            flag_melebihi = int(petani.get('flag_melebihi_kuota', 0))
+
+            # Rasio total penebusan
+            rasio_total_penebusan = total_ditebus / total_diajukan if total_diajukan > 0 else 0.0
+
+            # Selisih total pupuk
+            selisih_total_pupuk = total_diajukan - total_ditebus
+
+            # Hitung jumlah jenis pupuk yang diajukan & ditebus (dari 5 jenis)
+            jenis_diajukan = sum(1 for k in ['urea','npk','za','npk_formula','organik']
+                               if float(pupuk.get(k, {}).get('diajukan_kg', 0)) > 0)
+            jenis_ditebus = sum(1 for k in ['urea','npk','za','npk_formula','organik']
+                              if float(pupuk.get(k, {}).get('ditebus_kg', 0)) > 0)
 
             rows.append({
                 'total_pupuk_diajukan':        total_diajukan,
                 'total_pupuk_ditebus':         total_ditebus,
                 'urea_per_ha':                 urea_per_ha,
+                'npk_per_ha':                  npk_per_ha,
+                'total_pupuk_per_ha':          total_pupuk_per_ha,
                 'proporsi_urea':               proporsi_urea,
                 'proporsi_npk':                proporsi_npk,
-                'proporsi_za':                 proporsi_za,
-                'proporsi_npk_formula':        proporsi_npkf,
-                'proporsi_organik':            proporsi_organik,
                 'proporsi_tebus_urea':         prop_tb_urea,
                 'proporsi_tebus_npk':          prop_tb_npk,
-                'proporsi_tebus_za':           prop_tb_za,
-                'proporsi_tebus_npk_formula':  prop_tb_npkf,
-                'proporsi_tebus_organik':      prop_tb_org,
-                # Fitur tambahan (disertakan agar aman jika model diretrain)
                 'total_luas_lahan':            luas_lahan,
-                'jumlah_mt_aktif':             int(petani.get('jumlah_mt_aktif', 0)),
+                'jumlah_mt_aktif':             jumlah_mt,
                 'ada_penebusan':               1 if total_ditebus > 0 else 0,
-                'selisih_jenis_pupuk':         0,
-                'jenis_pupuk_diajukan':        sum(1 for v in [urea_aj,npk_aj,za_aj,npkf_aj,org_aj] if v > 0),
-                'jenis_pupuk_ditebus':         sum(1 for v in [urea_tb,npk_tb,za_tb,npkf_tb,org_tb] if v > 0),
+                'jenis_pupuk_ditebus':         jenis_ditebus,
+                'selisih_jenis_pupuk':         jenis_diajukan - jenis_ditebus,
+                'rata_pupuk_per_mt':           rata_pupuk_per_mt,
+                'rasio_total_penebusan':       rasio_total_penebusan,
+                'selisih_total_pupuk':         selisih_total_pupuk,
+                'flag_melebihi_kuota':         flag_melebihi,
             })
 
         df = pd.DataFrame(rows)
@@ -195,12 +202,7 @@ def classify_route():
         tidak_normal_count = int((predictions == 1).sum())
         total             = len(predictions)
 
-        model_info = {}
-        try:
-            model_data = load_model()
-            model_info = model_data.get('metrics', {}) or {}
-        except Exception:
-            model_info = {}
+        model_info = model_data.get('metrics', {}) or {}
 
         return jsonify({
             'summary': {

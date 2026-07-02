@@ -187,6 +187,19 @@ def standardize_siverval(df: pd.DataFrame) -> pd.DataFrame:
     if 'no_transaksi' in df.columns:
         df['no_transaksi'] = df['no_transaksi'].fillna('').astype(str).str.strip()
 
+    # Parse tanggal sebagai datetime
+    # Format aktual: D-M-YYYY (contoh: 26-1-2026), bisa juga DD-MM-YYYY
+    # Tidak pakai format spesifik agar pandas bisa handle keduanya
+    if 'tgl_tebus' in df.columns:
+        df['tgl_tebus'] = pd.to_datetime(df['tgl_tebus'], dayfirst=True, errors='coerce')
+
+    if 'tgl_input' in df.columns:
+        df['tgl_input'] = pd.to_datetime(df['tgl_input'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+
+    # status_petani = string
+    if 'status_petani' in df.columns:
+        df['status_petani'] = df['status_petani'].fillna('').astype(str).str.strip()
+
     return df
 
 

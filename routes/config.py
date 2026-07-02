@@ -28,8 +28,6 @@ def get_config():
             info['max'] = rules['max']
         if 'choices' in rules:
             info['choices'] = rules['choices']
-        if 'choices_str' in rules:
-            info['choices'] = rules['choices_str']
         param_info[param] = info
 
     return jsonify({

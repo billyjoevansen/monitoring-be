@@ -5,6 +5,9 @@ from services.visualization import (
     plot_classification_report,
     plot_label_distribution,
     plot_reconciliation_summary,
+    plot_cv_fold_scores,
+    plot_cv_comparison,
+    plot_cv_boxplot,
 )
 
 visualize_bp = Blueprint('visualize', __name__)
@@ -50,6 +53,20 @@ def visualize_training():
         # 4. Label Distribution
         if dist:
             charts['label_distribution'] = plot_label_distribution(dist)
+
+        # 5. K-Fold CV Charts
+        tuning = data.get('tuning', {})
+        if tuning and tuning.get('cv_results'):
+            charts['cv_fold_scores'] = plot_cv_fold_scores(
+                cv_results=tuning['cv_results'],
+                best_params=tuning['best_params'],
+            )
+            charts['cv_comparison'] = plot_cv_comparison(
+                cv_results=tuning['cv_results'],
+            )
+            charts['cv_boxplot'] = plot_cv_boxplot(
+                cv_results=tuning['cv_results'],
+            )
 
         return jsonify({
             'charts': charts,
