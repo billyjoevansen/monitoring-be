@@ -102,6 +102,7 @@ def reconcile(df: pd.DataFrame) -> dict:
             'selisih_total_kg': float(row.get('selisih_total_pupuk', 0)),
             'status_tebus': row.get('status_tebus', ''),
             'flag_melebihi_kuota': flag_melebihi,
+            'frekuensi_transaksi': int(row.get('frekuensi_transaksi', 0)),
         }
         detail.append(petani)
 

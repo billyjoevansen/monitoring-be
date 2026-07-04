@@ -114,9 +114,15 @@ def classify_route():
             # Pupuk per jenis
             urea_aj  = float(pupuk.get('urea',        {}).get('diajukan_kg', 0))
             npk_aj   = float(pupuk.get('npk',         {}).get('diajukan_kg', 0))
+            za_aj    = float(pupuk.get('za',          {}).get('diajukan_kg', 0))
+            organik_aj = float(pupuk.get('organik',    {}).get('diajukan_kg', 0))
 
             urea_tb  = float(pupuk.get('urea',        {}).get('ditebus_kg', 0))
             npk_tb   = float(pupuk.get('npk',         {}).get('ditebus_kg', 0))
+            za_tb    = float(pupuk.get('za',          {}).get('ditebus_kg', 0))
+            organik_tb = float(pupuk.get('organik',    {}).get('ditebus_kg', 0))
+            sp36_tb  = float(pupuk.get('sp36',        {}).get('ditebus_kg', 0))
+            organik_cair_tb = float(pupuk.get('organik_cair', {}).get('ditebus_kg', 0))
 
             # Proporsi pengajuan (hanya Urea & NPK)
             proporsi_urea    = urea_aj  / total_diajukan if total_diajukan > 0 else 0
@@ -144,6 +150,18 @@ def classify_route():
             # Selisih total pupuk
             selisih_total_pupuk = total_diajukan - total_ditebus
 
+            # Selisih per jenis pupuk
+            selisih_urea = urea_aj - urea_tb
+            selisih_npk  = npk_aj - npk_tb
+            selisih_za   = za_aj - za_tb
+            selisih_organik = organik_aj - organik_tb
+
+            # Frekuensi transaksi (dari reconcile detail)
+            frekuensi = int(petani.get('frekuensi_transaksi', 0))
+
+            # Tebus di luar RDKK (SP36 / Organik Cair)
+            tebus_diluar_rdkk = 1 if (sp36_tb > 0 or organik_cair_tb > 0) else 0
+
             # Hitung jumlah jenis pupuk yang diajukan & ditebus (dari 5 jenis)
             jenis_diajukan = sum(1 for k in ['urea','npk','za','npk_formula','organik']
                                if float(pupuk.get(k, {}).get('diajukan_kg', 0)) > 0)
@@ -160,15 +178,21 @@ def classify_route():
                 'proporsi_npk':                proporsi_npk,
                 'proporsi_tebus_urea':         prop_tb_urea,
                 'proporsi_tebus_npk':          prop_tb_npk,
+                'selisih_urea':                selisih_urea,
+                'selisih_npk':                 selisih_npk,
+                'selisih_za':                  selisih_za,
+                'selisih_organik':             selisih_organik,
+                'jenis_pupuk_ditebus':         jenis_ditebus,
+                'selisih_jenis_pupuk':         jenis_diajukan - jenis_ditebus,
                 'total_luas_lahan':            luas_lahan,
                 'jumlah_mt_aktif':             jumlah_mt,
                 'ada_penebusan':               1 if total_ditebus > 0 else 0,
-                'jenis_pupuk_ditebus':         jenis_ditebus,
-                'selisih_jenis_pupuk':         jenis_diajukan - jenis_ditebus,
                 'rata_pupuk_per_mt':           rata_pupuk_per_mt,
                 'rasio_total_penebusan':       rasio_total_penebusan,
                 'selisih_total_pupuk':         selisih_total_pupuk,
+                'frekuensi_transaksi':         frekuensi,
                 'flag_melebihi_kuota':         flag_melebihi,
+                'tebus_diluar_rdkk':           tebus_diluar_rdkk,
             })
 
         df = pd.DataFrame(rows)

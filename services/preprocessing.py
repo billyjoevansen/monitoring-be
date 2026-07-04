@@ -346,13 +346,19 @@ FEATURE_COLUMNS = [
     'npk_per_ha',
     'total_pupuk_per_ha',
 
-    # Proporsi pengajuan (hanya Urea & NPK — ZA/NPK Formula/Organik importance 0)
+    # Proporsi pengajuan
     'proporsi_urea',
     'proporsi_npk',
 
-    # Proporsi penebusan (hanya Urea & NPK)
+    # Proporsi penebusan
     'proporsi_tebus_urea',
     'proporsi_tebus_npk',
+
+    # Selisih per jenis pupuk
+    'selisih_urea',
+    'selisih_npk',
+    'selisih_za',
+    'selisih_organik',
 
     # Diversitas
     'jenis_pupuk_ditebus',
@@ -363,7 +369,9 @@ FEATURE_COLUMNS = [
     'rata_pupuk_per_mt',
     'rasio_total_penebusan',
     'selisih_total_pupuk',
+    'frekuensi_transaksi',
 
-    # Fitur baru (sesuai PDF)
+    # Flag
     'flag_melebihi_kuota',
+    'tebus_diluar_rdkk',
 ]

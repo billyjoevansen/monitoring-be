@@ -2,7 +2,8 @@ from flask import Blueprint, request, jsonify
 from utils.file_handler import parse_excel, standardize_rdkk, standardize_siverval
 from services.preprocessing import merge_data, engineer_features
 from services.labeling import assign_labels, get_label_summary
-from services.prediction import tune_and_train
+from services.prediction import tune_and_train, train_model
+from config.model_config import get_training_config
 
 train_bp = Blueprint('train', __name__)
 
@@ -10,10 +11,10 @@ train_bp = Blueprint('train', __name__)
 @train_bp.route('/api/train', methods=['POST'])
 def train():
     """
-    Endpoint untuk melatih model Random Forest dengan hyperparameter tuning.
+    Endpoint untuk melatih model Random Forest.
 
     Input: 2 file Excel (rdkk dan siverval) via form-data
-    Output: Metrik evaluasi model + hasil tuning
+    Output: Metrik evaluasi model + hasil tuning (jika aktif)
     """
     try:
         # --- Validasi file upload ---
@@ -43,9 +44,17 @@ def train():
         labeled_df = assign_labels(featured_df)
         label_summary = get_label_summary(labeled_df)
 
-        # --- Training dengan Hyperparameter Tuning ---
-        result = tune_and_train(labeled_df)
+        # --- Training: pilih berdasarkan config ---
+        tc = get_training_config()
+        use_tuning = tc.get('use_tuning', True)
+
+        if use_tuning:
+            result = tune_and_train(labeled_df)
+        else:
+            result = train_model(labeled_df)
+
         result['label_distribution'] = label_summary
+        result['method'] = 'tuning' if use_tuning else 'direct'
 
         return jsonify(result), 200
 

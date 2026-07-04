@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
 MODEL_PATH = os.path.join(MODEL_DIR, 'random_forest.pkl')
 
+# Fitur yang wajib masuk meskipun importance rendah
+# Alasan: dibutuhkan untuk analisis tesis (ZA & Organik)
+MUST_INCLUDE_FEATURES = ['selisih_za', 'selisih_organik']
+
 
 def train_model(df: pd.DataFrame) -> dict:
     """
@@ -128,6 +132,13 @@ def train_model(df: pd.DataFrame) -> dict:
     selected_mask = selector.get_support()
     selected_features = [f for f, s in zip(available_features, selected_mask) if s]
     dropped_features = [f for f, s in zip(available_features, selected_mask) if not s]
+
+    # Force keep fitur tesis meskipun importance rendah
+    for f in MUST_INCLUDE_FEATURES:
+        if f in available_features and f not in selected_features:
+            selected_features.append(f)
+            if f in dropped_features:
+                dropped_features.remove(f)
 
     # Minimal 3 fitur terpilih
     if len(selected_features) < 3:
@@ -262,8 +273,10 @@ def train_model(df: pd.DataFrame) -> dict:
 def tune_and_train(df: pd.DataFrame) -> dict:
     """
     Hyperparameter tuning dengan 10-Fold Stratified CV + Grid Search.
-    Mengembalikan model terbaik beserta hasil CV.
+    Feature selection dilakukan DI DALAM setiap fold (tanpa data leakage).
     """
+    from collections import Counter
+
     RF_PARAMS = get_random_forest_params()
     TRAIN_CONFIG = get_training_config()
 
@@ -287,32 +300,6 @@ def tune_and_train(df: pd.DataFrame) -> dict:
         )
 
     # =====================================================
-    # FEATURE SELECTION (dengan model awal)
-    # =====================================================
-    initial_model = RandomForestClassifier(
-        n_estimators=50,
-        criterion=RF_PARAMS['criterion'],
-        max_depth=RF_PARAMS['max_depth'],
-        class_weight=RF_PARAMS['class_weight'],
-        random_state=RF_PARAMS['random_state'],
-        n_jobs=RF_PARAMS['n_jobs'],
-    )
-    initial_model.fit(X, y)
-
-    selector = SelectFromModel(initial_model, threshold='median')
-    selector.fit(X, y)
-
-    selected_mask = selector.get_support()
-    selected_features = [f for f, s in zip(available_features, selected_mask) if s]
-    dropped_features = [f for f, s in zip(available_features, selected_mask) if not s]
-
-    if len(selected_features) < 3:
-        selected_features = available_features
-        dropped_features = []
-
-    X_selected = X[selected_features]
-
-    # =====================================================
     # HYPERPARAMETER GRID
     # =====================================================
     param_grid = {
@@ -330,6 +317,7 @@ def tune_and_train(df: pd.DataFrame) -> dict:
 
     # =====================================================
     # 10-FOLD STRATIFIED CV + GRID SEARCH
+    # Feature selection DI DALAM setiap fold (anti data leakage)
     # =====================================================
     cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
@@ -337,39 +325,73 @@ def tune_and_train(df: pd.DataFrame) -> dict:
     best_params = {}
     cv_results = []
 
+    # Untuk tracking fold features dari kombinasi terbaik
+    best_fold_features = []
+
     for i, params in enumerate(ParameterGrid(param_grid)):
-        model = RandomForestClassifier(
-            **params,
-            criterion=RF_PARAMS['criterion'],
-            max_features=RF_PARAMS['max_features'],
-            class_weight=RF_PARAMS['class_weight'],
-            bootstrap=True,
-            oob_score=False,
-            random_state=42,
-            n_jobs=-1,
-        )
+        fold_scores = []
+        fold_features_this_combination = []
 
-        scores = cross_val_score(
-            model, X_selected, y,
-            cv=cv,
-            scoring='f1_weighted',
-            n_jobs=-1,
-        )
+        for train_idx, test_idx in cv.split(X, y):
+            X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+            y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
 
-        mean_f1 = float(scores.mean())
-        std_f1 = float(scores.std())
+            # --- Feature Selection: HANYA pada data train fold ---
+            init_model = RandomForestClassifier(
+                n_estimators=50,
+                criterion=RF_PARAMS['criterion'],
+                max_depth=RF_PARAMS['max_depth'],
+                class_weight=RF_PARAMS['class_weight'],
+                random_state=42,
+                n_jobs=-1,
+            )
+            init_model.fit(X_train, y_train)
+
+            selector = SelectFromModel(init_model, threshold='median')
+            selector.fit(X_train, y_train)
+
+            features_fold = [f for f, s in zip(available_features, selector.get_support()) if s]
+            if len(features_fold) < 3:
+                features_fold = available_features
+
+            fold_features_this_combination.append(features_fold)
+
+            X_train_sel = X_train[features_fold]
+            X_test_sel = X_test[features_fold]
+
+            # --- Train + Predict pada fold ---
+            model = RandomForestClassifier(
+                **params,
+                criterion=RF_PARAMS['criterion'],
+                max_features=RF_PARAMS['max_features'],
+                class_weight=RF_PARAMS['class_weight'],
+                bootstrap=True,
+                oob_score=False,
+                random_state=42,
+                n_jobs=-1,
+            )
+            model.fit(X_train_sel, y_train)
+            y_pred = model.predict(X_test_sel)
+
+            score = f1_score(y_test, y_pred, average='weighted', labels=[0, 1], zero_division=0)
+            fold_scores.append(round(float(score), 4))
+
+        mean_f1 = float(np.mean(fold_scores))
+        std_f1 = float(np.std(fold_scores))
 
         cv_results.append({
             'rank': 0,
             'params': params,
             'mean_f1': round(mean_f1, 4),
             'std_f1': round(std_f1, 4),
-            'fold_scores': [round(float(s), 4) for s in scores],
+            'fold_scores': fold_scores,
+            'fold_features': fold_features_this_combination,
         })
 
         if mean_f1 > best_score:
             best_score = mean_f1
             best_params = params
+            best_fold_features = fold_features_this_combination
 
         if (i + 1) % 10 == 0:
             logger.info(f"Progress: {i + 1}/{n_combinations} kombinasi selesai")
@@ -380,6 +402,43 @@ def tune_and_train(df: pd.DataFrame) -> dict:
         item['rank'] = rank
 
     logger.info(f"Best CV F1: {best_score:.4f} | Params: {best_params}")
+
+    # =====================================================
+    # AGREGASI FITUR dari fold terbaik
+    # Fitur harus muncul di ≥70% fold untuk jadi final fitur
+    # =====================================================
+    FREQUENCY_THRESHOLD = 0.7
+
+    feature_counter = Counter()
+    for features in best_fold_features:
+        feature_counter.update(features)
+
+    n_folds = len(best_fold_features)
+    min_count = int(FREQUENCY_THRESHOLD * n_folds)
+
+    final_features = [f for f, cnt in feature_counter.items() if cnt >= min_count]
+    dropped_features = [f for f in available_features if f not in final_features]
+
+    # Force keep fitur tesis meskipun importance rendah
+    for f in MUST_INCLUDE_FEATURES:
+        if f in available_features and f not in final_features:
+            final_features.append(f)
+            if f not in feature_frequency:
+                feature_frequency[f] = 0
+            if f in dropped_features:
+                dropped_features.remove(f)
+
+    # Fallback: minimal 3 fitur
+    if len(final_features) < 3:
+        final_features = available_features
+        dropped_features = []
+
+    feature_frequency = dict(sorted(feature_counter.items(), key=lambda x: x[1], reverse=True))
+
+    logger.info(f"Feature frequency threshold: {min_count}/{n_folds} folds")
+    logger.info(f"Final features: {len(final_features)}/{len(available_features)} — {final_features}")
+
+    X_final = X[final_features]
 
     # =====================================================
     # TRAIN MODEL FINAL dengan best_params + seluruh data
@@ -394,10 +453,10 @@ def tune_and_train(df: pd.DataFrame) -> dict:
         random_state=42,
         n_jobs=-1,
     )
-    final_model.fit(X_selected, y)
+    final_model.fit(X_final, y)
 
     # Feature importance dari model final
-    feature_importance = dict(zip(selected_features, final_model.feature_importances_.tolist()))
+    feature_importance = dict(zip(final_features, final_model.feature_importances_.tolist()))
     feature_importance = dict(sorted(feature_importance.items(), key=lambda x: x[1], reverse=True))
 
     oob = round(final_model.oob_score_, 4) if final_model.oob_score_ else None
@@ -405,7 +464,7 @@ def tune_and_train(df: pd.DataFrame) -> dict:
     # =====================================================
     # EVALUASI MODEL FINAL (full data untuk confusion matrix)
     # =====================================================
-    y_pred = final_model.predict(X_selected)
+    y_pred = final_model.predict(X_final)
     accuracy = accuracy_score(y, y_pred)
     f1_weighted = f1_score(y, y_pred, average='weighted', labels=[0, 1], zero_division=0)
     cm = confusion_matrix(y, y_pred, labels=[0, 1])
@@ -424,7 +483,7 @@ def tune_and_train(df: pd.DataFrame) -> dict:
     from datetime import datetime, timezone
     model_data = {
         'model': final_model,
-        'features': selected_features,
+        'features': final_features,
         'params': best_params,
         'metrics': {
             'accuracy': round(accuracy, 4),
@@ -477,12 +536,14 @@ def tune_and_train(df: pd.DataFrame) -> dict:
         },
         'feature_selection': {
             'total_fitur_awal': len(available_features),
-            'total_fitur_terpilih': len(selected_features),
-            'fitur_terpilih': selected_features,
+            'total_fitur_terpilih': len(final_features),
+            'fitur_terpilih': final_features,
             'fitur_dibuang': dropped_features,
+            'feature_frequency': feature_frequency,
+            'frequency_threshold': FREQUENCY_THRESHOLD,
         },
         'tuning': {
-            'method': 'GridSearchCV + 10-Fold StratifiedKFold',
+            'method': 'GridSearchCV + 10-Fold StratifiedKFold (feature selection per-fold)',
             'n_folds': 10,
             'total_combinations': n_combinations,
             'best_params': best_params,
@@ -494,14 +555,14 @@ def tune_and_train(df: pd.DataFrame) -> dict:
             'hyperparameters': best_params,
             'training_config': TRAIN_CONFIG,
             'total_data': len(X),
-            'features_used': selected_features,
+            'features_used': final_features,
         },
         'model_file': {
             'path': MODEL_PATH,
             'size_kb': pkl_size_kb,
         },
         'label_distribution': {},
-        'message': 'Model berhasil dilatih dengan hyperparameter tuning (10-Fold CV).',
+        'message': 'Model berhasil dilatih dengan hyperparameter tuning (10-Fold CV + feature selection per-fold).',
     }
 
 

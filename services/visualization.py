@@ -358,3 +358,39 @@ def plot_cv_boxplot(cv_results: list, top_n: int = 10) -> str:
 
     fig.tight_layout()
     return fig_to_base64(fig)
+
+
+def plot_feature_frequency(feature_frequency: dict, n_folds: int = 10, threshold: float = 0.7) -> str:
+    """Horizontal bar chart frekuensi fitur muncul di tiap fold CV."""
+    if not feature_frequency:
+        return ''
+
+    sorted_items = sorted(feature_frequency.items(), key=lambda x: x[1])
+    features = [item[0] for item in sorted_items]
+    counts = [item[1] for item in sorted_items]
+
+    min_count = int(threshold * n_folds)
+
+    colors = ['#4CAF50' if c >= min_count else '#BDBDBD' for c in counts]
+
+    fig, ax = plt.subplots(figsize=(10, max(4, len(features) * 0.45)))
+    bars = ax.barh(features, counts, color=colors, edgecolor='white', linewidth=0.5)
+
+    ax.axvline(x=min_count, color='#F44336', linestyle='--', linewidth=2,
+               label=f'Threshold ({min_count}/{n_folds} folds)')
+
+    for bar, count in zip(bars, counts):
+        label = f'{count}/{n_folds}'
+        x_pos = bar.get_width() + 0.15
+        ax.text(x_pos, bar.get_y() + bar.get_height() / 2,
+                label, va='center', fontsize=9, fontweight='bold')
+
+    ax.set_xlabel('Jumlah Fold (dari 10)')
+    ax.set_title('Feature Frequency — Seberapa Sering Fitur Terpilih per Fold')
+    ax.set_xlim(0, n_folds + 1)
+    ax.set_xticks(range(0, n_folds + 1))
+    ax.legend(loc='lower right')
+    ax.grid(axis='x', alpha=0.3)
+
+    fig.tight_layout()
+    return fig_to_base64(fig)

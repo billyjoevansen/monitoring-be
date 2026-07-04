@@ -32,6 +32,7 @@ DEFAULT_CONFIG = {
         'test_size': 0.2,
         'random_state': 42,
         'stratify': True,
+        'use_tuning': True,
     }
 }
 
@@ -50,6 +51,7 @@ PARAM_RULES = {
     'random_state':      {'type': (int, type(None))},
     'n_jobs':            {'type': int},
     'test_size':         {'type': float,             'min': 0.1, 'max': 0.5},
+    'use_tuning':        {'type': bool},
 }
 
 

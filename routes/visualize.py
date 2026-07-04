@@ -8,6 +8,7 @@ from services.visualization import (
     plot_cv_fold_scores,
     plot_cv_comparison,
     plot_cv_boxplot,
+    plot_feature_frequency,
 )
 
 visualize_bp = Blueprint('visualize', __name__)
@@ -66,6 +67,17 @@ def visualize_training():
             )
             charts['cv_boxplot'] = plot_cv_boxplot(
                 cv_results=tuning['cv_results'],
+            )
+
+        # 6. Feature Frequency
+        fs_data = data.get('feature_selection', {})
+        feature_freq = fs_data.get('feature_frequency', {})
+        freq_threshold = fs_data.get('frequency_threshold', 0.7)
+        if feature_freq:
+            charts['feature_frequency'] = plot_feature_frequency(
+                feature_frequency=feature_freq,
+                n_folds=tuning.get('n_folds', 10),
+                threshold=freq_threshold,
             )
 
         return jsonify({
