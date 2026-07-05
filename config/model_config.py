@@ -18,21 +18,21 @@ DEFAULT_CONFIG = {
     'hyperparameters': {
         'n_estimators': 400,
         'criterion': 'gini',
-        'max_depth': 15,
+        'max_depth': 10,
         'max_features': 'sqrt',
         'min_samples_split': 10,
-        'min_samples_leaf': 5,
+        'min_samples_leaf': 30,
         'class_weight': 'balanced_subsample',
         'bootstrap': True,
         'oob_score': True,
         'random_state': 42,
-        'n_jobs': -1,
+        'n_jobs': 1,
     },
     'training_config': {
         'test_size': 0.2,
         'random_state': 42,
         'stratify': True,
-        'use_tuning': True,
+        'use_tuning': False,
     }
 }
 
@@ -42,9 +42,9 @@ PARAM_RULES = {
     'n_estimators':      {'type': int,               'min': 10,  'max': 1000},
     'criterion':         {'type': str,               'choices': ['gini', 'entropy']},
     'max_depth':         {'type': (int, type(None)), 'min': 1,   'max': 100},
-    'max_features':      {'type': (str, float, type(None)), 'choices': ['sqrt', 'log2']},
+    'max_features':      {'type': (str, float, type(None)), 'choices': ['sqrt', 'log2'], 'min': 0.1, 'max': 1.0},
     'min_samples_split': {'type': int,               'min': 2,   'max': 50},
-    'min_samples_leaf':  {'type': int,               'min': 1,   'max': 50},
+    'min_samples_leaf':  {'type': int,               'min': 1,   'max': 100},
     'class_weight':      {'type': (str, type(None)), 'choices': ['balanced', 'balanced_subsample']},
     'bootstrap':         {'type': bool},
     'oob_score':         {'type': bool},

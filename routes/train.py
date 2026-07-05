@@ -1,9 +1,12 @@
+import logging
 from flask import Blueprint, request, jsonify
 from utils.file_handler import parse_excel, standardize_rdkk, standardize_siverval
 from services.preprocessing import merge_data, engineer_features
 from services.labeling import assign_labels, get_label_summary
 from services.prediction import tune_and_train, train_model
 from config.model_config import get_training_config
+
+logger = logging.getLogger(__name__)
 
 train_bp = Blueprint('train', __name__)
 
@@ -61,4 +64,5 @@ def train():
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
+        logger.error(f"Training error: {e}", exc_info=True)
         return jsonify({'error': f'Terjadi kesalahan: {str(e)}'}), 500

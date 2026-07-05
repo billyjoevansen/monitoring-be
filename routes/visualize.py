@@ -9,6 +9,7 @@ from services.visualization import (
     plot_cv_comparison,
     plot_cv_boxplot,
     plot_feature_frequency,
+    plot_roc_curve,
 )
 
 visualize_bp = Blueprint('visualize', __name__)
@@ -78,6 +79,15 @@ def visualize_training():
                 feature_frequency=feature_freq,
                 n_folds=tuning.get('n_folds', 10),
                 threshold=freq_threshold,
+            )
+
+        # 7. ROC Curve
+        roc_data = perf.get('roc_curve_data', {})
+        if roc_data and roc_data.get('fpr') and roc_data.get('tpr'):
+            charts['roc_curve'] = plot_roc_curve(
+                fpr=roc_data['fpr'],
+                tpr=roc_data['tpr'],
+                roc_auc_val=roc_data['roc_auc'],
             )
 
         return jsonify({

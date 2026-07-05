@@ -394,3 +394,32 @@ def plot_feature_frequency(feature_frequency: dict, n_folds: int = 10, threshold
 
     fig.tight_layout()
     return fig_to_base64(fig)
+
+
+# =====================================================
+# ROC CURVE
+# =====================================================
+
+def plot_roc_curve(fpr: list, tpr: list, roc_auc_val: float) -> str:
+    """
+    ROC Curve: True Positive Rate vs False Positive Rate.
+    AUC = Area Under Curve (semakin tinggi semakin baik).
+    """
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    ax.plot(fpr, tpr, color='#2196F3', lw=2.5,
+            label=f'ROC curve (AUC = {roc_auc_val:.4f})')
+    ax.fill_between(fpr, tpr, alpha=0.15, color='#2196F3')
+    ax.plot([0, 1], [0, 1], color='gray', lw=1, linestyle='--',
+            label='Random Classifier (AUC = 0.5)')
+
+    ax.set_xlabel('False Positive Rate', fontsize=12)
+    ax.set_ylabel('True Positive Rate', fontsize=12)
+    ax.set_title('ROC Curve', fontsize=14, fontweight='bold')
+    ax.set_xlim([-0.02, 1.02])
+    ax.set_ylim([-0.02, 1.02])
+    ax.legend(loc='lower right', fontsize=11)
+    ax.grid(alpha=0.3)
+
+    fig.tight_layout()
+    return fig_to_base64(fig)

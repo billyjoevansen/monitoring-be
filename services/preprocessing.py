@@ -284,6 +284,33 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # --- 8g. Selisih jenis pupuk (ajukan vs tebus) ---
     df['selisih_jenis_pupuk'] = df['jenis_pupuk_diajukan'] - df['jenis_pupuk_ditebus']
 
+    # --- 8g2. Jumlah jenis pupuk yang over (tebus > diajukan) ---
+    over_flags = []
+    for pupuk, (tebus_col, ajukan_col) in pupuk_mapping.items():
+        if tebus_col in df.columns and ajukan_col in df.columns:
+            over_flags.append(df[tebus_col] > df[ajukan_col])
+    if over_flags:
+        df['jumlah_jenis_over'] = pd.concat(over_flags, axis=1).sum(axis=1).astype(int)
+    else:
+        df['jumlah_jenis_over'] = 0
+
+    # --- 8g3. Jumlah jenis pupuk yang ditebus tanpa pengajuan (rasio = 999) ---
+    tidak_diajukan_flags = []
+    for pupuk, (tebus_col, ajukan_col) in pupuk_mapping.items():
+        if tebus_col in df.columns and ajukan_col in df.columns:
+            tidak_diajukan_flags.append((df[tebus_col] > 0) & (df[ajukan_col] == 0))
+    if tidak_diajukan_flags:
+        df['jumlah_jenis_tidak_diajukan'] = pd.concat(tidak_diajukan_flags, axis=1).sum(axis=1).astype(int)
+    else:
+        df['jumlah_jenis_tidak_diajukan'] = 0
+
+    # --- 8g4. Proporsi jenis over terhadap jenis yang diajukan ---
+    df['proporsi_over'] = np.where(
+        df['jenis_pupuk_diajukan'] > 0,
+        df['jumlah_jenis_over'] / df['jenis_pupuk_diajukan'],
+        0.0
+    )
+
     # --- 8h. Apakah petani menebus pupuk sama sekali ---
     df['ada_penebusan'] = (df['total_pupuk_ditebus'] > 0).astype(int)
 
@@ -354,24 +381,20 @@ FEATURE_COLUMNS = [
     'proporsi_tebus_urea',
     'proporsi_tebus_npk',
 
-    # Selisih per jenis pupuk
-    'selisih_urea',
-    'selisih_npk',
-    'selisih_za',
-    'selisih_organik',
-
     # Diversitas
     'jenis_pupuk_ditebus',
     'selisih_jenis_pupuk',
 
+    # Anomali komposit (bukan per-jenis → hindari leakage langsung)
+    'jumlah_jenis_over',
+    'jumlah_jenis_tidak_diajukan',
+    'proporsi_over',
+
     # Pola perilaku
     'ada_penebusan',
     'rata_pupuk_per_mt',
-    'rasio_total_penebusan',
-    'selisih_total_pupuk',
     'frekuensi_transaksi',
 
     # Flag
     'flag_melebihi_kuota',
-    'tebus_diluar_rdkk',
 ]
