@@ -282,6 +282,14 @@ CREATE POLICY "user_delete_own_docs" ON storage.objects
     AND auth.uid()::text = (string_to_array(name, '/'))[1]
   );
 
+-- Any authenticated user can delete any file (used for bulk delete by admin/bpp)
+DROP POLICY IF EXISTS "any_user_delete_storage" ON storage.objects;
+CREATE POLICY "any_user_delete_storage" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'documents'
+    AND auth.uid() IS NOT NULL
+  );
+
 DROP POLICY IF EXISTS "user_update_own_docs" ON storage.objects;
 CREATE POLICY "user_update_own_docs" ON storage.objects
   FOR UPDATE USING (
@@ -295,6 +303,13 @@ CREATE POLICY "admin_read_all_storage" ON storage.objects
   FOR SELECT TO authenticated USING (
     bucket_id = 'documents'
     AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role IN ('admin', 'kabid', 'kasie'))
+  );
+
+DROP POLICY IF EXISTS "bpp_read_all_storage" ON storage.objects;
+CREATE POLICY "bpp_read_all_storage" ON storage.objects
+  FOR SELECT TO authenticated USING (
+    bucket_id = 'documents'
+    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'bpp')
   );
 
 DROP POLICY IF EXISTS "admin_insert_all_storage" ON storage.objects;
