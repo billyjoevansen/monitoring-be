@@ -2,6 +2,8 @@
 # Python
 # =====================
 __pycache__/
+.pytest_cache/
+tests/
 *.py[cod]
 *.pyo
 *.pyd
@@ -15,10 +17,16 @@ env/
 venv/
 ENV/
 .venv/
+
+# =====================
+# Supporting data files
+# =====================
 dummy_data/
 test_api.py
 normal_dummy.py
 generate_dummy.py
+dokumen_pendukung/
+test_real_data*.py
 
 # =====================
 # Flask
